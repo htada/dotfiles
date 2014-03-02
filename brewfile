@@ -1,0 +1,29 @@
+tap homebrew/dupes || true
+tap phinze/homebrew-cask || true
+tap homebrew/versions|| true
+update || true
+
+install git || true
+install tig || true
+install tmux || true
+install tree || true
+install openssl || true
+install readline || true
+install rsync || true
+install nkf || true
+install asciidoc || true
+install cmake || true
+install zsh || true
+install wget || true
+install libtool || true
+install autoconf || true
+install automake || true
+install imagemagick || true
+install perl-build || true
+install plenv || true
+install ruby-build || true
+install rbenv || true
+install ctags || true
+install node || true
+install libiconv || true
+

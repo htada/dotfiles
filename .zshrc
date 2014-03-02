@@ -1,3 +1,5 @@
+export LANG=ja_JP.UTF-8
+
 # Emacsライクキーバインド
 bindkey -e
 
@@ -20,11 +22,16 @@ setopt share_history        # zshプロセス間でヒストリを共有する
 setopt inc_append_history   # すぐにヒストリファイルに追記する
 setopt no_flow_control      # 出力停止、開始用にC-s/C-qを使わない(C-s/C-q によるフロー制御を使わないようにする)
 
+bindkey '^P' history-beginning-search-backward    # 先頭マッチのヒストリサーチ(進む)
+bindkey '^N' history-beginning-search-forward     # 先頭マッチのヒストリサーチ(戻る)
+
+setopt autopushd            # 勝手にpushd
+
 # prompt
 unsetopt promptcr           # 改行コード(\n)で終わっていなくても出力されるようにする(いちおう)
-# setopt prompt_subst       # PROMPT内で変数展開・コマンド置換・算術演算を実行する
+setopt prompt_subst         # PROMPT内で変数展開・コマンド置換・算術演算を実行する
 # setopt prompt_percent     # PROMPT内で「%」文字から始まる置換機能を有効にする
-setopt transient_rprompt    # コピペしやすいようにコマンド実行後は右プロンプトを消す
+setopt transient_rprompt    # 常に最後の行のみ右プロンプトを表示する
 
 # PROMPT="%% "
 RPROMPT="[%/]"              # 右側のプロンプト
@@ -60,3 +67,21 @@ zstyle ':completion:*:(perldoc|perl):*' matcher 'r:|[:][:]=*'
 
 alias ll="ls -lhG"
 alias lla="ls -lhaG"
+alias g="git"
+alias gs="git status"
+alias gb="git branch"
+alias grep="grep --color"
+
+if which rbenv > /dev/null; then
+  eval "$(rbenv init -)"
+  source /usr/local/Cellar/rbenv/0.4.0/completions/rbenv.zsh
+fi
+
+if which plenv > /dev/null; then
+  eval "$(plenv init -)"
+fi
+
+## prioritize homebrew
+export PATH=~/bin:/usr/local/bin:$PATH
+
+[ -f ~/.zshrc.local ] && source ~/.zshrc.local
