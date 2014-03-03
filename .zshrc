@@ -73,12 +73,11 @@ alias gb="git branch"
 alias grep="grep --color"
 
 if which rbenv > /dev/null; then
-  eval "$(rbenv init -)"
-  source /usr/local/Cellar/rbenv/0.4.0/completions/rbenv.zsh
+  eval "$(rbenv init - zsh)"
 fi
 
 if which plenv > /dev/null; then
-  eval "$(plenv init -)"
+  eval "$(plenv init - zsh)"
 fi
 
 ## prioritize homebrew
