@@ -7,9 +7,9 @@
 
 ;; Author: Masahiko Sato <masahiko@kuis.kyoto-u.ac.jp>
 ;; Maintainer: SKK Development Team <skk@ring.gr.jp>
-;; Version: $Id: skk-kcode.el,v 1.76 2010/12/21 03:23:21 skk-cvs Exp $
+;; Version: $Id: skk-kcode.el,v 1.107 2012/11/26 12:51:12 skk-cvs Exp $
 ;; Keywords: japanese, mule, input method
-;; Last Modified: $Date: 2010/12/21 03:23:21 $
+;; Last Modified: $Date: 2012/11/26 12:51:12 $
 
 ;; This file is part of Daredevil SKK.
 
@@ -33,7 +33,7 @@
 ;;; Code:
 
 (eval-when-compile
-  (require 'font-lock)
+  (require 'cl)
   (require 'skk-macs)
   (require 'skk-vars)
   (defvar enable-recursive-minibuffers)
@@ -43,70 +43,118 @@
 
 ;;;###autoload
 (defun skk-input-by-code-or-menu (&optional arg)
+  "変数 `skk-kcode-method' で指定された機能を用いて文字を挿入する。"
+  ;; `skk-rom-kana-base-rule-list' が指しているのはこの関数。
+  (interactive "*P")
+  (let (list)
+    (case skk-kcode-method
+      (char-list
+       (skk-list-chars arg))
+      (code-or-char-list
+       (and (setq list (skk-input-by-code arg))
+	    (skk-list-chars arg)))
+      (this-key
+       (insert (format "%s" (this-command-keys))))
+      (t
+       (and (setq list (skk-input-by-code arg))
+	    (insert (apply #'skk-input-by-code-or-menu-0 list))))))
+  (when (eq skk-henkan-mode 'active)
+    (skk-kakutei)))
+
+(defun skk-input-by-code (&optional arg)
   "7/8 bit JIS コード もしくは 区点番号に対応する文字を挿入する。"
   (interactive "*P")
   (when arg
-    (setq skk-kcode-charset (intern (completing-read "Character set: "
-						     '(("japanese-jisx0213-1")
-						       ("japanese-jisx0213-2")
-						       ("japanese-jisx0208"))
-						     nil t
-						     (symbol-name skk-kcode-charset)))))
-  (let* ((str (read-string (format "\
-7/8 bits JIS code (00nn) or KUTEN code (00-00) for `%s' (CR for Jump Menu): "
-				   skk-kcode-charset)))
-	 (list (split-string str "-"))
+    (setq skk-kcode-charset (intern (completing-read
+				     "Character set: "
+				     '(("japanese-jisx0213-1")
+				       ("japanese-jisx0213-2")
+				       ("japanese-jisx0208"))
+				     nil t
+				     (symbol-name skk-kcode-charset)))))
+  (let* ((enable-recursive-minibuffers t)
+	 (codestr (skk-kcode-read-code-string))
+	 (list (skk-kcode-parse-code-string codestr))
+	 (flag (nth 0 list))
+	 (n1 (nth 1 list))
+	 (n2 (nth 2 list))
+	 (char (nth 3 list)))
+    (cond
+     ((> n1 160)
+      (insert (skk-kcode-find-char-string flag n1 n2 char))
+      nil)
+     (t
+      (list n1 n2)))))
+
+(defun skk-kcode-read-code-string ()
+  (read-string (format (if skk-japanese-message-and-error
+			   "\
+`%s' の文字を指定します。7/8 ビット JIS コード (00nn), 区点コード (00-00),\
+ UNICODE (U+00nn), または [RET] (%s): "
+			 "\
+To find a character in `%s', type 7/8 bits JIS code (00nn),\
+ KUTEN code (00-00), UNICODE (U+00nn), or [RET] for %s: ")
+		       skk-kcode-charset
+		       (if (eq skk-kcode-method 'code-or-char-list)
+			   "char-list"
+			 "menu"))))
+
+(defun skk-kcode-parse-code-string (str)
+  (let* ((list (split-string str "-"))
 	 (len (length list))
-	 (enable-recursive-minibuffers t)
-	 n1 n2 flag)
-    (cond ((eq len 2)			; ハイフン `-' で区切られた「区-点」
-	   (setq n1 (+ (string-to-number (nth 0 list))
-		       32 128)
-		 n2 (+ (string-to-number (nth 1 list))
-		       32 128)))
-	  ((eq len 3)			; ハイフン `-' で区切られた「面-区-点」
-	   (setq flag (if (equal "2" (nth 0 list))
-			  'x0213-2
-			'x0213-1)
-		 n1 (+ (string-to-number (nth 1 list))
-		       32 128)
-		 n2 (+ (string-to-number (nth 2 list))
-		       32 128)))
-	  ((string-match "^[uU]\\+\\(.*\\)$" str) ; `U+' で始まればユニコード
-	   (setq flag 'unicode
-		 n1 161
-		 n2 0
-		 str (string-to-number (match-string-no-properties 1 str) 16)))
-	  (t				; 上記以外は JIS コードとみなす
-	   (setq n1 (if (string= str "")
-			128
-		      (+ (* 16 (skk-char-to-hex (aref str 0) 'jis))
-			 (skk-char-to-hex (aref str 1))))
-		 n2 (if (string= str "")
-			128
-		      (+ (* 16 (skk-char-to-hex (aref str 2) 'jis))
-			 (skk-char-to-hex (aref str 3)))))))
+	 n1 n2 flag char)
+    (cond
+     ((eq len 2)
+      ;; ハイフン `-' で区切られた「区-点」
+      (setq n1 (+ (string-to-number (nth 0 list))
+		  32 128)
+	    n2 (+ (string-to-number (nth 1 list))
+		  32 128)))
+     ((eq len 3)
+      ;; ハイフン `-' で区切られた「面-区-点」
+      (setq flag (if (equal "2" (nth 0 list))
+		     'x0213-2
+		   'x0213-1)
+	    n1 (+ (string-to-number (nth 1 list))
+		  32 128)
+	    n2 (+ (string-to-number (nth 2 list))
+		  32 128)))
+     ((string-match "^[uU]\\+\\(.*\\)$" str)
+      ;; `U+' で始まればユニコード
+      (setq flag 'unicode
+	    n1 161
+	    n2 0
+	    char (string-to-number (match-string-no-properties 1 str) 16)))
+     (t
+      ;; 上記以外は JIS コードとみなす
+      (setq n1 (if (string= str "")
+		   128
+		 (+ (* 16 (skk-char-to-hex (aref str 0) 'jis))
+		    (skk-char-to-hex (aref str 1))))
+	    n2 (if (string= str "")
+		   128
+		 (+ (* 16 (skk-char-to-hex (aref str 2) 'jis))
+		    (skk-char-to-hex (aref str 3)))))))
     ;;
     (when (or (> n1 256)
 	      (> n2 256))
       (skk-error "無効なコードです"
 		 "Invalid code"))
-    (insert (if (> n1 160)
-		(cond ((eq flag 'x0213-1)
-		       (char-to-string (skk-make-char 'japanese-jisx0213-1 n1 n2)))
-		      ((eq flag 'x0213-2)
-		       (char-to-string (skk-make-char 'japanese-jisx0213-2 n1 n2)))
-		      ((eq flag 'unicode)
-		       (char-to-string
-			(if (eval-when-compile (fboundp
-						'ucs-representation-decoding-backend))
-			    (ucs-representation-decoding-backend 'ucs str nil)
-			  str)))
-		      (t
-		       (skk-make-string n1 n2)))
-	      (skk-input-by-code-or-menu-0 n1 n2)))
-    (when (eq skk-henkan-mode 'active)
-      (skk-kakutei))))
+    (list flag n1 n2 char)))
+
+(defun skk-kcode-find-char-string (flag n1 n2 char)
+  (case flag
+    (x0213-1
+     (char-to-string (skk-make-char 'japanese-jisx0213-1 n1 n2)))
+    (x0213-2
+     (char-to-string (skk-make-char 'japanese-jisx0213-2 n1 n2)))
+    (unicode
+     (char-to-string
+      (if (fboundp 'ucs-representation-decoding-backend)
+	  (funcall #'ucs-representation-decoding-backend 'ucs char nil)
+	char)))
+    (t
+     (skk-make-string n1 n2))))
 
 (defun skk-char-to-hex (char &optional jischar)
   "CHAR を 16 進数とみなして、対応する数値を 10 進数で返す。"
@@ -128,7 +176,7 @@
 	       char))))
 
 (defun skk-make-string (n1 n2)
-  "skk-kcode-charset が示す文字集合に従って n1 n2 に対応する STRING を返す"
+  "`skk-kcode-charset' が示す文字集合に従って n1 n2 に対応する STRING を返す"
   (char-to-string (skk-make-char skk-kcode-charset n1 n2)))
 
 ;; tiny function, but called once in skk-kcode.el.  So not make it inline.
@@ -166,8 +214,8 @@
     (skk-input-by-code-or-menu-1 n1 n2)))
 
 (defun skk-input-by-code-or-menu-jump (n)
-  (let ((menu-keys1 (mapcar #'(lambda (char) ; 表示用のキーリスト
-				(skk-char-to-unibyte-string (upcase char)))
+  (let ((menu-keys1 (mapcar (lambda (char) ; 表示用のキーリスト
+			      (skk-char-to-unibyte-string (upcase char)))
 			    skk-input-by-code-menu-keys1))
 	kanji-char)
     (when (< n skk-code-n1-min)
@@ -207,7 +255,7 @@
 		   i (1+ i)))
 	   (if skk-show-tooltip
 	       (funcall skk-tooltip-function str)
-	     (message str)))
+	     (message "%s" str)))
 	 ;;
 	 (let* ((event (next-command-event))
 		(char (event-to-character event))
@@ -255,7 +303,7 @@
 `%s' EUC: %2x%2x (%3d, %3d), JIS: %2x%2x (%3d, %3d) [何かキーを押してください]"
 	      "\
 `%s' EUC: %2x%2x (%3d, %3d), JIS: %2x%2x (%3d, %3d) [Hit any key to continue]"
-	      (car (car chars))
+	      (caar chars)
 	      n-org skk-code-n1-min
 	      n-org skk-code-n1-min
 	      (- n-org 128) (- skk-code-n1-min 128)
@@ -272,13 +320,13 @@
 	     (setq n n-org)
 	     nil))))))
     (setq skk-input-by-code-or-menu-jump-default
-	  (car (cdr kanji-char)))
-    (skk-input-by-code-or-menu-1 (car (cdr kanji-char))
-				 (car (cdr (cdr kanji-char))))))
+	  (cadr kanji-char))
+    (skk-input-by-code-or-menu-1 (cadr kanji-char)
+				 (car (cddr kanji-char)))))
 
 (defun skk-input-by-code-or-menu-1 (n1 n2)
-  (let ((menu-keys2 (mapcar #'(lambda (char) ; 表示用のキーリスト
-				(skk-char-to-unibyte-string (upcase char)))
+  (let ((menu-keys2 (mapcar (lambda (char) ; 表示用のキーリスト
+			      (skk-char-to-unibyte-string (upcase char)))
 			    skk-input-by-code-menu-keys2))
 	kanji-char)
     (while (not kanji-char)
@@ -310,7 +358,7 @@
 		   i (1+ i)))
 	   (if skk-show-tooltip
 	       (funcall skk-tooltip-function str)
-	     (message str)))
+	     (message "%s" str)))
 	 (let* ((event (next-command-event))
 		(char (event-to-character event))
 		(key (skk-event-key event))
@@ -385,23 +433,18 @@
 
 ;;;###autoload
 (defun skk-display-code-for-char-at-point (&optional arg)
-  "ポイントにある文字の区点番号、JIS コード、EUC コード及びシフト JIS コード\
- を表示する。"
+  "ポイントにある文字の区点番号、JIS コード、EUC コード、シフト JIS コード\
+及びユニコードを表示する。"
+  (interactive)
   (if (eobp)
-      (and (skk-message "カーソルがバッファの終端にあります"
-			"Cursor is at the end of the buffer")
-	   t) ; エコーした文字列をカレントバッファに挿入しないように。
-    (skk-display-code (following-char))
-    t))
+      (skk-message "カーソルがバッファの終端にあります"
+		   "Cursor is at the end of the buffer")
+    (skk-display-code (following-char) (point)))
+  t) ; エコーした文字列をカレントバッファに挿入しないように。
 
-(defun skk-display-code (char)
-  (require 'font-lock)
-  (let* ((charset (if (eval-when-compile (and skk-running-gnu-emacs
-					      (>= emacs-major-version 23)))
-		      ;; GNU Emacs 23.1 or later
-		      (char-charset char skk-charset-list)
-		    (char-charset char)))
-	 mesg)
+(defun skk-display-code (char p)
+  (let ((charset (skk-char-charset char skk-charset-list))
+	mesg)
     (cond
      ((memq charset '(japanese-jisx0213-1
 		      japanese-jisx0213-2
@@ -421,21 +464,33 @@
 	     (char-data (skk-tankan-get-char-data char))
 	     (anno (skk-tankan-get-char-annotation char))
 	     (unicode (cond ((eval-when-compile
-			       (and skk-running-gnu-emacs
+			       (and (featurep 'emacs)
 				    (>= emacs-major-version 23)))
 			     (concat ", "
 				     (propertize "UNICODE:" 'face
 						 'skk-display-code-prompt-face)
 				     (format "U+%04x" char)))
+
 			    ((and (eval-when-compile (fboundp 'char-to-ucs))
+				  (fboundp 'char-to-ucs)
 				  (char-to-ucs char))
 			     (concat ", "
 				     (propertize "UNICODE:" 'face
 						 'skk-display-code-prompt-face)
 				     (format "U+%04x" (char-to-ucs char))))
+
+			    ((and (eval-when-compile (fboundp 'encode-char))
+				  (fboundp 'encode-char)
+				  (encode-char char 'ucs))
+			     (concat ", "
+				     (propertize "UNICODE:" 'face
+						 'skk-display-code-prompt-face)
+				     (format "U+%04x" (encode-char char 'ucs))))
+
 			    (t
-			     ""))))
-	;;
+			     "")))
+	     (composition (find-composition p nil nil t)))
+
 	(setq mesg
 	      (concat (propertize (char-to-string char)
 				  'face 'skk-display-code-char-face)
@@ -455,8 +510,11 @@
 		      (format "#x%2x%2x" char1-s char2-s)
 
 		      unicode
-		      (if (zerop (nth 2 char-data))
-			  ""
+		      (if composition
+			  (format " (Composed with U+%x)"
+				  (string-to-char
+				   (buffer-substring (1+ p) (nth 1 composition)))))
+		      (unless (zerop (nth 2 char-data))
 			(concat ", "
 				(propertize
 				 (format "総%d画（%s部 %d画）"
@@ -464,12 +522,14 @@
 					 (aref skk-tankan-radical-vector
 					       (nth 0 char-data))
 					 (nth 1 char-data))
-				 'face 'font-lock-string-face)))
+				 'face 'skk-display-code-tankan-radical-face)))
 		      (if anno
 			  (concat ", "
-				  (propertize anno
-					      'face 'font-lock-string-face)))
-			   ))))
+				  (propertize
+				   anno
+				   'face
+				   'skk-display-code-tankan-annotation-face)))
+		      ))))
      ;;
      ((memq charset '(ascii latin-jisx0201))
       (setq mesg
@@ -479,17 +539,25 @@
 		    (propertize "DECIMAL:" 'face 'skk-display-code-prompt-face)
 		    (format "%3d" (skk-char-octet char 0)))))
      ;;
+     ((eq (char-charset char) 'unicode)
+      (setq mesg (format "UNICODE: U+%04x" char))) ;要mule-ucs(emacs22)対応
+     ;;
      (t
-      (skk-error "判別できない文字です"
-		 "Cannot understand this character")))
+      (setq mesg (format (if skk-japanese-message-and-error
+			     "文字集合 %s はサポートしていません"
+			   "%s character set is not supported")
+			 (char-charset char)))))
     ;;
-    (if (and window-system
-	     skk-show-tooltip
-	     (not (eq (symbol-function 'skk-tooltip-show-at-point) 'ignore)))
-	(funcall skk-tooltip-function (mapconcat #'(lambda (x) x)
-						 (split-string mesg ", ")
-						 "\n\t"))
-      (message mesg))))
+    (cond
+     ((and window-system
+	   skk-show-tooltip
+	   (not (eq (symbol-function 'skk-tooltip-show-at-point) 'ignore)))
+      (funcall skk-tooltip-function
+	       (replace-regexp-in-string ", " "\n\t" mesg)))
+     (skk-show-candidates-always-pop-to-buffer
+      (skk-annotation-show (replace-regexp-in-string ", " "\n\t" mesg)))
+     (t
+      (message "%s" mesg)))))
 
 (defun skk-jis2sjis (char1 char2)
   (let* ((ch2 (if (eq (* (/ char1 2) 2) char1)
@@ -508,6 +576,12 @@
 	 (c2 (if (>= ch2 158) (- ch2 125) (- ch2 31)))
 	 (c1 (if (> ch2 127) (+ ch1 1) ch1)))
     (list c1 c2)))
+
+;; 2面
+;; XEmacs でのエラー回避のためにこの関数を一時 skk-emacs.el に退避する。
+;; (autoload 'skk-jis2sjis2 "skk-emacs")
+(when (eval-when-compile (featurep 'xemacs))
+  (defalias 'skk-jis2sjis2 'ignore))
 
 ;;;; skk-list-chars
 ;; TODO
@@ -533,14 +607,14 @@
 	i ch)
     (insert "\n"
 	    (propertize
-	     (format "%02d-#x--- 0-- 1-- 2-- 3-- 4-- 5-- 6-- 7-- 8-- 9-- A-- B-- C-- D-- E-- F" (- high 32)) 'face 'font-lock-comment-face))
+	     (format "%02d-#x--- 0-- 1-- 2-- 3-- 4-- 5-- 6-- 7-- 8-- 9-- A-- B-- C-- D-- E-- F" (- high 32)) 'face 'skk-list-chars-table-header-face))
     (setq i (* (/ min 16) 16))		; i は 下位バイト
     (while (<= i max)			; 0x21 .. 0x7e
-      (when (= (% i 16) 0)
+      (when (zerop (% i 16))
 	(insert (propertize (format "\n %5X0" (/ (+ (* high 256)
 						   i)
 						16))
-			    'face 'font-lock-comment-face)))
+			    'face 'skk-list-chars-table-header-face)))
       (setq ch (if (< i min)
 		   32
 		 (or (make-char charset (/ (* high 256) 256) i)
@@ -552,49 +626,51 @@
 
 ;;;###autoload
 (defun skk-list-chars (arg)
-  "Docstring."
-  (require 'font-lock)
-  (let ((buf (progn (and (get-buffer skk-list-chars-buffer-name)
-			 (kill-buffer skk-list-chars-buffer-name))
-		    (get-buffer-create skk-list-chars-buffer-name)))
-	(ch (char-to-string (if arg
-				(following-char)
-			      (make-char skk-kcode-charset 33 33)))))
-    (setq skk-kcode-charset (if arg
-				(car (split-char (string-to-char ch)))
-			      skk-kcode-charset))
-    (if (eq skk-kcode-charset 'ascii)
-	(setq skk-kcode-charset 'japanese-jisx0208
-	      ch (char-to-string (make-char skk-kcode-charset 33 33))))
-    (skk-kakutei)			; ▽ or ▼ で \ した場合
+  "変数 `skk-kcode-charset' に従って文字一覧を表示する.
+\\[universal-argument] 付きで実行すると、following-char() を優先表示する."
+  (interactive "P")
+  (setq skk-list-chars-original-window-configuration
+	(current-window-configuration))
+  (let* ((buf (progn (and (get-buffer skk-list-chars-buffer-name)
+			  (kill-buffer skk-list-chars-buffer-name))
+		     (get-buffer-create skk-list-chars-buffer-name)))
+	 (char (if arg
+		   (following-char)
+		 (make-char skk-kcode-charset 33 33)))
+	 (charset (if arg
+		      (car (split-char char))
+		    skk-kcode-charset)))
+    (if (eq charset 'ascii)
+	(setq charset 'japanese-jisx0208
+	      char (make-char 'japanese-jisx0208 33 33)))
+    (when skk-henkan-mode		; ▽ or ▼ で呼ばれた場合
+      (skk-kakutei))
     (setq skk-list-chars-destination-buffer (current-buffer))
     (set-buffer buf)
     (setq buffer-read-only nil)
     (erase-buffer)
     (set-buffer-multibyte t)
-    (insert (propertize (format "variable skk-kcode-charset's value is `%s'.\n"
-				skk-kcode-charset)
-			'face font-lock-doc-face))
-
-    (let ((high 33))			; ?\x21
-      (while (<= high 126)		; ?\x7e
-	(skk-list-chars-sub high skk-kcode-charset)
-	(setq high (1+ high))))
+    (insert (format "Characters in the coded character set `%s'.\n"
+		    charset))
+    (dotimes (high 94)			; from ?\x21 to ?\x7e
+      (skk-list-chars-sub (+ high 33) charset))
     (pop-to-buffer buf)
-    (search-backward ch)
+    (search-backward (char-to-string char))
     (setq skk-list-chars-point (point))
     (put-text-property skk-list-chars-point (progn (forward-char) (point))
-    		       'face 'font-lock-warning-face)
+		       'face 'skk-list-chars-face)
     (goto-char skk-list-chars-point)
     (set-buffer-modified-p nil)
     (setq buffer-read-only t)
-    (skk-list-chars-mode)))
+    (skk-list-chars-mode)
+    ;;
+    (when skk-list-chars-default-charstr
+      (skk-list-chars-move-to-charstr skk-list-chars-default-charstr))))
 
 (defun skk-list-chars-quit ()
   (interactive)
-  (if (one-window-p)
-      (switch-to-buffer skk-list-chars-destination-buffer) ;killされている可能性あり
-    (delete-window)))
+  (kill-buffer (current-buffer))
+  (set-window-configuration skk-list-chars-original-window-configuration))
 
 (defun skk-list-chars-display-code ()
   (interactive)
@@ -602,29 +678,50 @@
     (if (eq 'ascii (car (split-char c)))
 	;; 区切り行などで $ された場合
 	(next-completion 1)
-      (skk-display-code c))))
+      (skk-display-code c (point)))))
 
 (defun skk-list-chars-copy ()
   (interactive)
   (unless (eobp)
-    (message "`%s' copied." 
+    (message "`%s' copied."
 	     (kill-new (char-to-string (following-char))))))
 
 (defun skk-list-chars-next-line ()
   (interactive)
   (let ((col (current-column)))
+    (when (< col 8)
+      (setq col 8))
+    (unless (zerop (mod col 4))
+      (setq col (- col 2)))
     (forward-line)
-    (if (eq 'ascii (car (split-char (following-char))))
-	(next-completion 1))
-    (move-to-column col)))
+    (move-to-column col)
+    (when (eq 'ascii (car (split-char (following-char))))
+      (forward-line)
+      (move-to-column col)
+      (when (eq 'ascii (car (split-char (following-char))))
+	(forward-line)
+	(move-to-column col)))))
 
 (defun skk-list-chars-previous-line ()
   (interactive)
   (let ((col (current-column)))
-    (forward-line -1)
-    (if (eq 'ascii (car (split-char (following-char))))
-	(next-completion -1))
-    (move-to-column col)))
+    (when (< col 8)
+      (setq col 8))
+    (unless (zerop (mod col 4))
+      (setq col (- col 2)))
+    (if (< (count-lines (point-min) (point)) 5)
+	(progn
+	  (goto-char (point-min))
+	  (search-forward (char-to-string (make-char skk-kcode-charset 33 33)))
+	  (move-to-column col))
+      (forward-line -1)
+      (move-to-column col)
+      (when (eq 'ascii (car (split-char (following-char))))
+	(forward-line -1)
+	(move-to-column col)
+	(when (eq 'ascii (car (split-char (following-char))))
+	  (forward-line -1)
+	  (move-to-column col))))))
 
 (defun skk-list-chars-goto-point ()
   (interactive)
@@ -632,15 +729,16 @@
 
 (defun skk-list-chars-insert ()
   (interactive)
-  (if (eobp)
-      (forward-char -1)
-    (if (eq 'ascii (car (split-char (following-char))))
-	;; 区切り行などで RET された場合
-	(next-completion 1)
-      (let ((c (following-char)))
-	(set-buffer skk-list-chars-destination-buffer) ; kill されている可能性あり
-	(insert c))
-      )))
+  (when (buffer-live-p skk-list-chars-destination-buffer)
+    (if (eobp)
+	(forward-char -1)
+      (if (eq 'ascii (car (split-char (following-char))))
+	  ;; 区切り行などで RET された場合
+	  (next-completion 1)
+	(let ((c (following-char)))
+	  (set-buffer skk-list-chars-destination-buffer)
+	  (insert c)
+	  (setq skk-list-chars-default-charstr (char-to-string c)))))))
 
 (defun skk-list-chars-other-charset ()
   (interactive)
@@ -656,51 +754,35 @@
 
 (defun skk-list-chars-code-input ()
   (interactive)
-  (let ((code (read-string
-	       (format "7/8 bits JIS code (00nn) or KUTEN code (00-00) or UNICODE (U+00nn) for `%s': " skk-kcode-charset))))
+  (skk-list-chars-jump 'insert))
+
+(defun skk-list-chars-jump (&optional insert)
+  (interactive)
+  (let ((code (skk-kcode-read-code-string))
+	str)
     (unless (string= code "")
-      (skk-list-chars-code-input-1 code))))
+      (setq str (skk-list-chars-find-char-string-for-code code))
+      (when str
+	(when insert
+	  (save-current-buffer
+	    (set-buffer skk-list-chars-destination-buffer)
+	    (insert str))
+	  (setq skk-list-chars-default-charstr str))
+	(skk-list-chars-move-to-charstr str)))))
 
-(defun skk-list-chars-code-input-1 (code)
-  (let ((str (cond
-	      ;; ハイフン `-' で区切られた「区-点」
-	      ((string-match "^\\([0-9]*[0-9]\\)-\\([0-9]*[0-9]\\)$" code)
-	       (skk-make-string (+ (string-to-number (match-string 1 code))
-				   32 128)
-				(+ (string-to-number (match-string 2 code))
-				   32 128)))
-	      ;; `U+' で始まればユニコード
-	      ((string-match "^[uU]\\+\\(.*\\)$" code)
-	       (let ((char (string-to-number (match-string-no-properties 1 code) 16)))
-		 (char-to-string
-		  (cond ((eval-when-compile
-			   (fboundp 'ucs-representation-decoding-backend))
-			 (ucs-representation-decoding-backend 'ucs char nil))
-			((>= emacs-major-version 23)
-			 char)
-			(t
-			 32)))))
-	      ;; 上記以外は JIS コードとみなす
-	      (t				
-	       (skk-make-string (+ (* 16 (skk-char-to-hex (aref code 0) 'jis))
-				   (skk-char-to-hex (aref code 1)))
-				(+ (* 16 (skk-char-to-hex (aref code 2) 'jis))
-				   (skk-char-to-hex (aref code 3))))))
-	     ))
-    (save-current-buffer
-      (set-buffer skk-list-chars-destination-buffer)
-      (insert str))
+(defun skk-list-chars-move-to-charstr (charstr)
+  (when (memq (skk-char-charset (string-to-char charstr) skk-charset-list)
+	      (list 'japanese-jisx0208 skk-kcode-charset))
     (goto-char (point-min))
-    (search-forward str nil t)
-    (forward-char -1))
-  (when (eq skk-henkan-mode 'active)
-    (skk-kakutei)))
+    (let ((case-fold-search nil))
+      (search-forward charstr nil t))
+    (forward-char -1)))
 
-;; 2面
-;; XEmacs でのエラー回避のためにこの関数を一時 skk-emacs.el に退避する。
-;; (autoload 'skk-jis2sjis2 "skk-emacs")
-(when (eval-when-compile (featurep 'xemacs))
-  (defalias 'skk-jis2sjis2 'ignore))
+(defun skk-list-chars-find-char-string-for-code (code)
+  (let ((list (skk-kcode-parse-code-string code)))
+    (if (> (nth 1 list) 160)
+	(apply #'skk-kcode-find-char-string list)
+      nil)))
 
 (run-hooks 'skk-kcode-load-hook)
 

@@ -29,6 +29,12 @@
 ;;; Code:
 
 (eval-when-compile
+  (require 'skk-macs))
+
+(require 'skk-cus)
+(require 'skk-vars)
+
+(eval-when-compile
   (defvar font-lock-defaults))
 
 (defvar skk-jisyo-edit-map nil
@@ -93,18 +99,44 @@
 
 ;;;###autoload
 (defun skk-edit-private-jisyo (&optional coding-system)
+  "個人辞書ファイル `skk-jisyo' を編集する。
+任意での個人辞書保存のあと、`skk-jisyo' を開き、`skk-jisyo-edit-mode' に入る。
+ローカルに 以下のキー定義が追加される。
+
+key       binding
+---       -------
+C-c C-c   Save & Exit
+C-c C-k   Abort
+
+SKK 使用中の場合は SKK による個人辞書バッファの更新が禁止される。
+
+オプショナル引数 CODING-SYSTEM にて個人辞書のコード系を指定可能。
+
+この機能は従来の手動での個人辞書編集より配慮されているが、SKK 辞書の構文を
+チェックすることはできず、自己責任での編集であることは変わりない。"
   (interactive "P")
-  (when coding-system
-    (setq coding-system (read-coding-system
-			 "個人辞書のコーディングシステムを指定: "
-			 (skk-find-coding-system skk-jisyo-code))))
-  (unless coding-system
-    (setq coding-system (skk-find-coding-system skk-jisyo-code)))
-  ;;
-  (when (skk-y-or-n-p "辞書をセーブしますか？ "
-		      "Save jisyo? ")
-    (skk-save-jisyo))
-  (message nil)
+  (let (answer)
+    (unless skk-jisyo-edit-user-accepts-editing
+      (setq answer (skk-yes-or-no-p "\
+個人辞書の編集は辞書を壊す可能性があります。自己責任での実行に同意しますか？"
+				    "\
+You must edit your private dictionary at your own risk.  Do you accept it?"))
+      (when answer
+	(skk-cus-set '((skk-jisyo-edit-user-accepts-editing . t))))))
+  (when skk-jisyo-edit-user-accepts-editing
+    (when coding-system
+      (setq coding-system (read-coding-system
+			   "個人辞書のコーディングシステムを指定: "
+			   (skk-find-coding-system skk-jisyo-code))))
+    (unless coding-system
+      (setq coding-system (skk-find-coding-system skk-jisyo-code)))
+    ;;
+    (when (skk-y-or-n-p "個人辞書を保存しますか？ "
+			"Save private jisyo? ")
+      (skk-save-jisyo))
+    (skk-edit-private-jisyo-1 coding-system)))
+
+(defun skk-edit-private-jisyo-1 (coding-system)
   (setq skk-jisyo-edit-original-window-configuration
 	(current-window-configuration))
   ;; SKK 辞書の文字コードは誤判定がありうるため、注意する
@@ -136,26 +168,28 @@
   (ad-activate 'skk-henkan-in-minibuff)
   (ad-activate 'skk-purge-from-jisyo)
   (local-set-key "\C-c\C-c"
-		 #'(lambda ()
-		     (interactive)
-		     (when (skk-y-or-n-p "編集を終了しますか？ "
-					 "Finish editing jisyo? ")
-		       (save-buffer)
-		       (kill-buffer (current-buffer))
-		       (skk-reread-private-jisyo t)
-		       (set-window-configuration
-			skk-jisyo-edit-original-window-configuration))
-		     (message nil)))
+		 (lambda ()
+		   (interactive)
+		   (when (skk-y-or-n-p "編集を終了しますか？ "
+				       "Finish editing jisyo? ")
+		     (save-buffer)
+		     (kill-buffer (current-buffer))
+		     (skk-reread-private-jisyo t)
+		     (set-window-configuration
+		      skk-jisyo-edit-original-window-configuration))
+		   (message nil)))
   (local-set-key "\C-c\C-k"
-		 #'(lambda ()
-		     (interactive)
-		     (when (skk-y-or-n-p "編集を中止しますか？ "
-					 "Abort editing jisyo? ")
-		       (set-buffer-modified-p nil)
-		       (kill-buffer (current-buffer))
-		       (set-window-configuration
-			skk-jisyo-edit-original-window-configuration))
-		     (message nil))))
+		 (lambda ()
+		   (interactive)
+		   (when (skk-y-or-n-p "編集を中止しますか？ "
+				       "Abort editing jisyo? ")
+		     (set-buffer-modified-p nil)
+		     (kill-buffer (current-buffer))
+		     (set-window-configuration
+		      skk-jisyo-edit-original-window-configuration))
+		   (message nil)))
+  (skk-message "保存終了: C-c C-c, 編集中止: C-c C-k"
+	       "Save & Exit: C-c C-c, Abort: C-c C-k"))
 
 (defadvice skk-henkan-in-minibuff (before notify-no-effect disable)
   (ding)

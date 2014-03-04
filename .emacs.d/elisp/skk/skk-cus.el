@@ -52,7 +52,7 @@
     (skk-japanese-message-and-error
      (const :tag "メッセージは日本語で通知する" t) "")
     (skk-verbose
-     (const :tag "助言的メッセージを表示する" t) "")
+     (const :tag "冗長なメッセージを表示する" t) "")
     (skk-show-japanese-menu
      (const :tag "メニューバーを日本語で表示する" t) "")
     (skk-show-annotation
@@ -148,13 +148,12 @@
 
 (defun skk-cus-info (params)
   (delq nil
-	(mapcar
-	 #'(lambda (el)
-	     (let ((val (symbol-value (car el))))
-	       (if val
-		   (cons (car el) val)
-		 nil)))
-	 params)))
+	(mapcar (lambda (el)
+		  (let ((val (symbol-value (car el))))
+		    (if val
+			(cons (car el) val)
+		      nil)))
+		params)))
 
 ;;;###autoload
 (defun skk-customize-group-skk ()
@@ -176,41 +175,41 @@
 	(set var t))))
   (setq skk-custom-buffer-original (current-buffer))
   (let (
-	(visual (mapcar #'(lambda (entry)
-			   `(cons :format "%v%h\n"
-				  :doc ,(nth 2 entry)
-				  (const :format "" ,(nth 0 entry))
-				  ,(nth 1 entry)))
-		       skk-cus-params-visual))
-	(ui (mapcar #'(lambda (entry)
-			   `(cons :format "%v%h\n"
-				  :doc ,(nth 2 entry)
-				  (const :format "" ,(nth 0 entry))
-				  ,(nth 1 entry)))
-		       skk-cus-params-ui))
-	(henkan (mapcar #'(lambda (entry)
-			   `(cons :format "%v%h\n"
-				  :doc ,(nth 2 entry)
-				  (const :format "" ,(nth 0 entry))
-				  ,(nth 1 entry)))
-		       skk-cus-params-henkan))
-	(search (mapcar #'(lambda (entry)
-			   `(cons :format "%v%h\n"
-				  :doc ,(nth 2 entry)
-				  (const :format "" ,(nth 0 entry))
-				  ,(nth 1 entry)))
+	(visual (mapcar (lambda (entry)
+			  `(cons :format "%v%h\n"
+				 :doc ,(nth 2 entry)
+				 (const :format "" ,(nth 0 entry))
+				 ,(nth 1 entry)))
+			skk-cus-params-visual))
+	(ui (mapcar (lambda (entry)
+		      `(cons :format "%v%h\n"
+			     :doc ,(nth 2 entry)
+			     (const :format "" ,(nth 0 entry))
+			     ,(nth 1 entry)))
+		    skk-cus-params-ui))
+	(henkan (mapcar (lambda (entry)
+			  `(cons :format "%v%h\n"
+				 :doc ,(nth 2 entry)
+				 (const :format "" ,(nth 0 entry))
+				 ,(nth 1 entry)))
+			skk-cus-params-henkan))
+	(search (mapcar (lambda (entry)
+			  `(cons :format "%v%h\n"
+				 :doc ,(nth 2 entry)
+				 (const :format "" ,(nth 0 entry))
+				 ,(nth 1 entry)))
 		       skk-cus-params-search))
-	(input (mapcar #'(lambda (entry)
-			   `(cons :format "%v%h\n"
-				  :doc ,(nth 2 entry)
-				  (const :format "" ,(nth 0 entry))
-				  ,(nth 1 entry)))
+	(input (mapcar (lambda (entry)
+			 `(cons :format "%v%h\n"
+				:doc ,(nth 2 entry)
+				(const :format "" ,(nth 0 entry))
+				,(nth 1 entry)))
 		       skk-cus-params-input))
-	(misc (mapcar #'(lambda (entry)
-			   `(cons :format "%v%h\n"
-				  :doc ,(nth 2 entry)
-				  (const :format "" ,(nth 0 entry))
-				  ,(nth 1 entry)))
+	(misc (mapcar (lambda (entry)
+			`(cons :format "%v%h\n"
+			       :doc ,(nth 2 entry)
+			       (const :format "" ,(nth 0 entry))
+			       ,(nth 1 entry)))
 		       skk-cus-params-misc))
 	(info (append
 	       (skk-cus-info skk-cus-params-visual)
@@ -220,7 +219,11 @@
 	       (skk-cus-info skk-cus-params-input)
 	       (skk-cus-info skk-cus-params-misc))))
     (kill-buffer (get-buffer-create "*SKK の基本設定*"))
-    (switch-to-buffer (get-buffer-create "*SKK の基本設定*"))
+;;     (switch-to-buffer (get-buffer-create "*SKK の基本設定*"))
+    (set-window-buffer (selected-window)
+		       (get-buffer-create "*SKK の基本設定*"))
+    (set-buffer "*SKK の基本設定*")
+
     (skk-custom-mode)
     (widget-insert "SKK の基本設定。終わったら ")
     (widget-create 'push-button
@@ -301,7 +304,9 @@
   (skk-cus-set)
   (bury-buffer)
   (unless (eq skk-custom-buffer-original (current-buffer))
-    (switch-to-buffer skk-custom-buffer-original))
+;;      (switch-to-buffer skk-custom-buffer-original))
+    (set-window-buffer (selected-window)
+		       (get-buffer skk-custom-buffer-original)))
   (skk-adjust-user-option))
 
 ;;;###autoload
@@ -317,22 +322,23 @@
       (delete-file old-name))
     (skk-cus-set)))
 
-(defun skk-cus-set ()
-  (dolist (param skk-custom-alist)
+;;;###autoload
+(defun skk-cus-set (&optional alist)
+  (unless alist
+    (setq alist skk-custom-alist))
+  (dolist (param alist)
     (let ((variable (car param))
 	  (value (cdr param)))
       (funcall (or (get variable 'custom-set) 'set-default) variable value)
       (put variable 'saved-value (list (custom-quote value)))
-      (unless (eval-when-compile (and skk-running-gnu-emacs
-				      (= emacs-major-version 21)))
-	;; Emacs 21 にはない関数。
-	(custom-push-theme 'theme-value variable 'user 'set
-			   (custom-quote value)))
+      (custom-push-theme 'theme-value variable 'user 'set
+			 (custom-quote value))
       (put variable 'customized-value nil)
       (put variable 'customized-variable-comment nil)))
   (custom-save-all)
   ;;
-  (setq skk-custom-alist nil))
+  (when (eq alist skk-custom-alist)
+    (setq skk-custom-alist nil)))
 
 (provide 'skk-cus)
 

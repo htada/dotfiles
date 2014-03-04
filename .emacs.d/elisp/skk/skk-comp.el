@@ -6,9 +6,9 @@
 
 ;; Author: Masahiko Sato <masahiko@kuis.kyoto-u.ac.jp>
 ;; Maintainer: SKK Development Team <skk@ring.gr.jp>
-;; Version: $Id: skk-comp.el,v 1.85 2010/12/25 09:51:55 skk-cvs Exp $
+;; Version: $Id: skk-comp.el,v 1.93 2013/01/13 09:45:48 skk-cvs Exp $
 ;; Keywords: japanese, mule, input method
-;; Last Modified: $Date: 2010/12/25 09:51:55 $
+;; Last Modified: $Date: 2013/01/13 09:45:48 $
 
 ;; This file is part of Daredevil SKK.
 
@@ -47,7 +47,7 @@
 
 ;;;###autoload
 (defun skk-comp-start-henkan (arg)
-  "$B"&%b!<%I$GFI$_$NJd40$r9T$J$C$?8e!"JQ49$9$k!#(B
+  "$B"&%b!<%I$GFI$_$rJd40$7$?8e!"JQ49$9$k!#(B
 $B$=$l0J30$N%b!<%I$G$O%*%j%8%J%k$N%-!<%^%C%W$K3d$jIU$1$i$l$?%3%^%s%I$r%(%_%e%l!<(B
 $B%H$9$k!#(B"
   (interactive "*P")
@@ -115,7 +115,7 @@
     (cond
      ;; ($BA48uJdC5:w:Q$_(B)
      (skk-comp-search-done
-      (if (= skk-comp-depth 0)
+      (if (zerop skk-comp-depth)
 	  ;; circulate $B$J$i$P(B c-word = skk-comp-key $B$J$N$G(B c-word = nil
 	  ;; non-circulate $B$J$i$P(B $B$3$l0J>e8uJd$,$J$$$N$G(B c-word = nil
 	  (if skk-comp-circulate
@@ -126,7 +126,7 @@
      (t
       (cond
        ;; $B:G8e$KF@$i$l$?8uJd$rI=<($7$F$$$k(B
-       ((= skk-comp-depth 0)
+       ((zerop skk-comp-depth)
 	(setq c-word
 	      (let ((word (skk-comp-get-candidate first)))
 		(while (member word skk-comp-stack)
@@ -220,6 +220,7 @@
 		  (mapcar 'skk-hiragana-to-katakana ret)
 		ret))))
 
+;;;###autoload
 (defun skk-comp-get-regexp (prefix)
   ;; $B%W%l%U%#%C%/%9$KBP1~$9$k@55,I=8=$rJV$9!#(B
   ;; $B0lEY@8@.$7$?@55,I=8=$O(B skk-comp-prefix-regexp-alist $B$KJ]B8$7$F$*$/!#(B
@@ -314,13 +315,12 @@
 		   nil t))
 	(unless (eq (following-char)
 		    ?\040) ;SPC
-	  (setq c-word
-		(concat key
-			(buffer-substring-no-properties
-			 ;; $B8+=P$78l$K6uGr$O4^$^$l$J$$!#(B
-			 ;; " /" $B$r%5!<%A$9$kI,MW$O$J$$!#(B
-			 (point)
-			 (1- (search-forward " ")))))
+	  (setq c-word (concat key
+			       (buffer-substring-no-properties
+				;; $B8+=P$78l$K6uGr$O4^$^$l$J$$!#(B
+				;; " /" $B$r%5!<%A$9$kI,MW$O$J$$!#(B
+				(point)
+				(1- (search-forward " ")))))
 	  (when (and abbrev
 		     (string-match "\\Ca" c-word))
 	    ;; abbrev $B%b!<%I$G!V(B3$B$M$s!W$J$I$NJd40$O$7$J$$(B
@@ -339,20 +339,17 @@
     (save-match-data
       ;; `case-fold-search' $B$O!"<-=q%P%C%U%!$G$O>o$K(B nil$B!#(B
       (while (and (not c-word)
-		  (re-search-forward
-		   (concat "\n" regexp-key)
-		   nil t))
+		  (re-search-forward (concat "\n" regexp-key) nil t))
 	(beginning-of-line)
 	(search-forward (if skk-use-numeric-conversion
 			    (skk-num-compute-henkan-key key)
 			  key))
 	(unless (eq (following-char)
 		    ?\040)		;SPC
-	  (setq c-word
-		(concat key
-			(buffer-substring-no-properties
-			 (point)
-			 (1- (search-forward " ")))))
+	  (setq c-word (concat key
+			       (buffer-substring-no-properties
+				(point)
+				(1- (search-forward " ")))))
 	  (when (and abbrev
 		     (string-match "\\Ca" c-word))
 	    ;; abbrev $B%b!<%I$G!V(B3$B$M$s!W$J$I$NJd40$O$7$J$$(B
@@ -400,7 +397,7 @@
 
 ;;;###autoload
 (defun skk-try-completion (arg)
-  "$B"&%b!<%I$G8+=P$78l$NJd40$r9T$&!#(B
+  "$B"&%b!<%I$G8+=P$78l$rJd40$9$k!#(B
 $B$=$l0J30$N%b!<%I$G$O!"%*%j%8%J%k$N%-!<3d$jIU$1$N%3%^%s%I$r%(%_%e%l!<%H$9$k!#(B"
   (interactive "P")
   (skk-with-point-move
@@ -429,20 +426,14 @@
 (defun skk-comp-by-history ()
   ;; skk-comp-prefix $B$r9MN8(B
   "$BF~NO$,6u$N;~$KMzNr$+$iJd40$9$k!#(B
-$BBP>]$O8=:_$N(B Emacs $B$N%;%C%7%g%s$K$*$$$F9T$J$C$?Aw$jL5$7JQ49$N$&$A!"(B
+$BBP>]$O8=:_$N(B Emacs $B$N%;%C%7%g%s$K$*$$$F9T$C$?Aw$jL5$7JQ49$N$&$A!"(B
 `skk-kakutei-history-limit' $B$G;XDj$5$l$k:G6a$N$b$N$G$"$k!#(B"
   (when (and (string= skk-comp-key "")
 	     (or (not skk-comp-use-prefix)
 		 (string= skk-comp-prefix "")))
     (when skk-comp-first
-      (let (list
-	    el)
-	(dolist (cell skk-kakutei-history)
-	  (setq el (car cell))
-	  (unless (member el list)
-	    (push el list)))
-	(setq skk-comp-kakutei-midasi-list
-	      (nreverse list))))
+      (setq skk-comp-kakutei-midasi-list
+	    (skk-remove-duplicates (mapcar #'car skk-kakutei-history))))
     (pop skk-comp-kakutei-midasi-list)))
 
 ;;;###autoload
@@ -461,8 +452,8 @@
 ;;;###autoload
 (defun skk-search-smart-find (&optional path not-abbrev-only
 					without-char-maybe)
-  "`smart-find'$B$rMxMQ$7$?JQ49$r9T$J$&!#(B
-SKK abbrev $B%b!<%I$K$F!"1QJ8;z(B + skk-completion-search-char (~)$B$G(B
+  "`smart-find'$B$rMxMQ$7$?JQ49$r9T$&!#(B
+SKK abbrev $B%b!<%I$K$F!"1QJ8;z(B + `skk-completion-search-char' (~)$B$G(B
 $BL$40%9%Z%k$r;XDj$7$FJQ49$9$k$H!"Jd408uJd$,JQ498uJd$H$7$F=P8=$9$k!#(B
 $B%G%U%)%k%H$G$O(B SKK abbrev $B%b!<%I$N$_$GM-8z$J5!G=$@$,!"(B
 NOT-ABBREV-ONLY $B$r;XDj$9$k;v$G>o$KM-8z$H$J$k!#(B"
@@ -502,14 +493,18 @@ NOT-ABBREV-ONLY $B$r;XDj$9$k;v$G>o$KM-8z$H$J$k!#(B"
   "Lisp symbol $BL>$GJd40$9$k!#(B
 PREDICATE $B$K0z?t(B 1 $B8D$N4X?t$r;XDj$9$l$P!"(BPREDICATE $B$rK~$?$9%7%s%\%k(B
 $B$K8B$C$FJd40$9$k!#(BPREDICATE $B$K$O(B `fboundp', `boundp', `commandp'
-$B$J$I$,;XDj$G$-$k!#;XDj$7$J$1$l$P4X?t$^$?$OJQ?t$K8B$C$FJd40$9$k!#(B"
+$B$J$I$,;XDj$G$-$k!#;XDj$7$J$1$l$P4X?t$^$?$OJQ?t$K8B$C$FJd40$9$k!#(B
+
+`skk-completion-prog-list' $B$XDI2C$9$k$HM-8z$H$J$k!#(B
+\(add-to-list 'skk-completion-prog-list
+	     '\(skk-comp-lisp-symbol\) t\)"
   (cond (skk-abbrev-mode
 	 (when skk-comp-first
 	   (let (temp)
 	     (unless predicate
-	       (setq predicate #'(lambda (symbol)
-				   (or (fboundp symbol)
-				       (boundp symbol)))))
+	       (setq predicate (lambda (symbol)
+				 (or (fboundp symbol)
+				     (boundp symbol)))))
 	     (setq temp
 		   (sort (let ((completion-ignore-case nil))
 			   (all-completions skk-comp-key obarray predicate))
@@ -530,10 +525,15 @@ PREDICATE $B$K0z?t(B 1 $B8D$N4X?t$r;XDj$9$l$P!"(BPREDICATE $B$rK~$?$9%7%s%\
 PREDICATE $B$K0z?t(B 1 $B8D$N4X?t$r;XDj$9$l$P!"(BPREDICATE $B$rK~$?$9%7%s%\%k(B
 $B$K8B$C$FJd40$9$k!#(BPREDICATE $B$K$O(B `fboundp', `boundp', `commandp'
 $B$J$I$,;XDj$G$-$k!#;XDj$7$J$1$l$P4X?t$^$?$OJQ?t$K8B$C$FJd40$9$k!#(B
-SKK abbrev $B%b!<%I$K$F!"1QJ8;z(B + skk-completion-search-char (~)$B$G(B
+SKK abbrev $B%b!<%I$K$F!"1QJ8;z(B + `skk-completion-search-char' (~)$B$G(B
 $BL$40%9%Z%k$r;XDj$7$FJQ49$9$k$H!"Jd408uJd$,JQ498uJd$H$7$F=P8=$9$k!#(B
 $B%G%U%)%k%H$G$O(B SKK abbrev $B%b!<%I$N$_$GM-8z$J5!G=$@$,!"(B
-NOT-ABBREV-ONLY $B$r;XDj$9$k;v$G>o$KM-8z$H$J$k!#(B"
+NOT-ABBREV-ONLY $B$r;XDj$9$k;v$G>o$KM-8z$H$J$k!#(B
+
+
+$B@_DjNc(B
+\(add-to-list 'skk-search-prog-list
+	     '\(skk-search-lisp-symbol\) t\)"
   (when (and (or not-abbrev-only
 		 skk-abbrev-mode))
     (skk-completion-search `((skk-comp-lisp-symbol ',predicate))

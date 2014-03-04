@@ -34,66 +34,52 @@
 
 ;; Functions.
 (defun skk-add-background-color (string color)
-  "STRING のなかで背景色指定がない文字にだけ COLOR の背景色をつける。"
-  (when (eval-when-compile skk-running-gnu-emacs)
-    (when (and string color)
+  "STRING のうち背景色が指定されていない文字に限って COLOR の背景色を
+適用する。"
+  (when (eval-when-compile (featurep 'emacs))
+    (when (and string
+	       color
+	       (color-defined-p color))
       (let ((start 0)
 	    (end 1)
+	    (len (length string))
 	    orig-face)
-	(while (< start (length string))
+	(while (< start len)
 	  (setq orig-face (get-text-property start 'face string))
-	  (while (and (< end (length string))
+	  (while (and (< end len)
 		      (eq orig-face (get-text-property end 'face string)))
-	    (setq end (1+ end)))
-	  (cond
-	   ((not orig-face)
-	    (put-text-property start end 'face
-			       `(:background ,color)
-			       string))
-	   ((and (facep orig-face) (not (face-background orig-face)))
-	    (cond
-	     ((eval-when-compile (= emacs-major-version 21))
-	      ;; Emacs 21 で :inherit がうまく継承されない？
-	      ;; workaround
-	      (let (attrs)
-		(dolist (pair face-attribute-name-alist)
-		  (let* ((attr (car pair))
-			 (val (face-attribute orig-face attr (selected-frame))))
-		    (unless (eq val 'unspecified)
-		      (setq attrs (cons attr (cons val attrs))))))
-		(put-text-property start end 'face
-				   (append attrs `(:background ,color))
-				   string)))
-	     (t
-	      (put-text-property start end 'face
-				 `(:inherit ,orig-face :background ,color)
-				 string))))
-	   ((and (listp orig-face)
-		 (not (plist-get (get-text-property start 'face string)
-				 :background))
-		 (not (and (plist-get (get-text-property start 'face start)
-				      :inherit)
-			   (face-background
-			    (plist-get (get-text-property start 'face start)
-				       :inherit)))))
-	    (put-text-property start end 'face
-			       (cons
-				`(:background ,color)
-				orig-face)
-			       string)))
+	    (incf end))
+	  (cond ((not orig-face)
+		 (put-text-property start end 'face
+				    `(:background ,color)
+				    string))
+		;;
+		((and (facep orig-face)
+		      (not (face-background orig-face)))
+		 (put-text-property start end 'face
+				    `(:inherit ,orig-face :background ,color)
+				    string))
+		;;
+		((and (listp orig-face)
+		      (not (plist-get (get-text-property start 'face string)
+				      :background))
+		      (not (and (plist-get (get-text-property start 'face start)
+					   :inherit)
+				(face-background
+				 (plist-get (get-text-property start 'face start)
+					    :inherit)))))
+		 (put-text-property start end 'face
+				    (cons `(:background ,color)
+					  orig-face)
+				    string)))
+
 	  (setq start (max (1+ start) end)
 		end (1+ start)))))
     string))
 
 ;;;###autoload
-(defun skk-inline-hide-1 ()
-  (dolist (ol skk-inline-overlays)
-    (delete-overlay ol))
-  (setq skk-inline-overlays nil))
-
-;;;###autoload
 (defun skk-inline-show (str face &optional vertical-str text-max-height)
-  (skk-inline-hide)
+  (skk-delete-overlay skk-inline-overlays)
   (if (and (eq 'vertical skk-show-inline)
 	   ;; window が候補群を表示できる高さがあるかチェック
 	   (stringp vertical-str)
@@ -123,7 +109,7 @@
 	   ;; 場合あり ?
 	   (beg-col (max 0 (- (skk-screen-column) margin)))
 	   (candidates (split-string string "\n"))
-	   (max-width (apply 'max (mapcar 'string-width candidates)))
+	   (max-width (skk-max-string-width candidates))
 	   (i 0)
 	   bottom col ol invisible)
       (dolist (str candidates)
@@ -135,8 +121,8 @@
 	(when face
 	  (setq str (propertize str 'face face)))
 	(when skk-inline-show-background-color
-	  (setq str (skk-add-background-color
-		     str skk-inline-show-background-color)))
+	  (setq str (skk-add-background-color str
+					      skk-inline-show-background-color)))
 	(save-excursion
 	  (scroll-left (max 0
 			    (- (+ beg-col margin max-width margin 1)
@@ -147,35 +133,35 @@
 		  (save-excursion (goto-char skk-henkan-start-point)
 				  (- (current-column) margin))))
 	  (case i
-	   (0
-	    (setq col (skk-screen-column)))
-	   (t
-	    (setq bottom (> i (vertical-motion i)))
-	    (cond
-	     (bottom
-	      ;; バッファ最終行では普通に overlay を追加していく方法だ
-	      ;; と overlay の表示される順番が狂うことがあってうまくな
-	      ;; い。したがって前回の overlay の after-string に追加す
-	      ;; る。
-	      (setq ol (cond ((< (overlay-end
-				  (car skk-inline-overlays))
-				 (point))
-			      (make-overlay (point) (point)))
-			     (t (pop skk-inline-overlays))))
-	      (setq str (concat (overlay-get ol 'after-string)
-				"\n" (make-string beg-col ? ) str)))
-	     (t
-	      (setq col (skk-move-to-screen-column beg-col))
-	      (cond ((> beg-col col)
-		     ;; 桁合わせの空白を追加
-		     (setq str (concat (make-string (- beg-col col) ? )
-				       str)))
-		    ;; overlay の左端がマルチ幅文字と重なったときの微調整
-		    ((< beg-col col)
-		     (backward-char)
-		     (setq col (skk-screen-column))
-		     (setq str (concat (make-string (- beg-col col) ? )
-				       str))))))))
+	    (0
+	     (setq col (skk-screen-column)))
+	    (t
+	     (setq bottom (> i (vertical-motion i)))
+	     (cond
+	      (bottom
+	       ;; バッファ最終行では普通に overlay を追加していく方法だ
+	       ;; と overlay の表示される順番が狂うことがあってうまくな
+	       ;; い。したがって前回の overlay の after-string に追加す
+	       ;; る。
+	       (setq ol (cond ((< (overlay-end
+				   (car skk-inline-overlays))
+				  (point))
+			       (make-overlay (point) (point)))
+			      (t (pop skk-inline-overlays))))
+	       (setq str (concat (overlay-get ol 'after-string)
+				 "\n" (make-string beg-col ? ) str)))
+	      (t
+	       (setq col (skk-move-to-screen-column beg-col))
+	       (cond ((> beg-col col)
+		      ;; 桁合わせの空白を追加
+		      (setq str (concat (make-string (- beg-col col) ? )
+					str)))
+		     ;; overlay の左端がマルチ幅文字と重なったときの微調整
+		     ((< beg-col col)
+		      (backward-char)
+		      (setq col (skk-screen-column))
+		      (setq str (concat (make-string (- beg-col col) ? )
+					str))))))))
 	  ;; この時点で overlay の開始位置に point がある
 	  (unless bottom
 	    (let ((ol-beg (point))

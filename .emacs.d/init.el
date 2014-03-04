@@ -14,7 +14,7 @@
 	(if (fboundp 'normal-top-level-add-subdirs-to-load-path)
 	    (normal-top-level-add-subdirs-to-load-path))))))
 ;; load-path
-(add-to-load-path "elisp" "conf")
+(add-to-load-path "elisp")
 
 ;; command <--> option
 (setq ns-command-modifier (quote meta))
@@ -37,8 +37,8 @@
 ;;; skk の「かなモードおよび変換の確定」
 (setq skk-kakutei-key "\C-o")
 ;;; skk-server AquaSKK
-(setq skk-server-portnum 1178)
-(setq skk-server-host "localhost")
+;; (setq skk-server-portnum 1178)
+;; (setq skk-server-host "localhost")
 ;;; skk起動コマンド
 (global-set-key "\C-x\C-j" 'skk-mode)
 ;;; skk i-search
@@ -73,7 +73,7 @@
 (set-frame-parameter (selected-frame) 'alpha '(88 50))
 
 ;; frame
-(setq initial-frame-alist '((width . 198)(height . 68)(top . 0)(left . 2)))
+(setq initial-frame-alist '((width . 150)(height . 40)(top . 0)(left . 0)))
 
 ;; color
 (set-background-color "Black")

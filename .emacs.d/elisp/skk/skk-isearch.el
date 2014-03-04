@@ -5,9 +5,9 @@
 
 ;; Author: Enami Tsugutomo <enami@ba2.so-net.or.jp>
 ;; Maintainer: SKK Development Team <skk@ring.gr.jp>
-;; Version: $Id: skk-isearch.el,v 1.67 2010/11/17 21:15:18 skk-cvs Exp $
+;; Version: $Id: skk-isearch.el,v 1.76 2012/12/03 10:36:39 skk-cvs Exp $
 ;; Keywords: japanese, mule, input method
-;; Last Modified: $Date: 2010/11/17 21:15:18 $
+;; Last Modified: $Date: 2012/12/03 10:36:39 $
 
 ;; This file is part of Daredevil SKK.
 
@@ -28,25 +28,15 @@
 
 ;;; Commentary:
 
-;; functions for hooks.
+;; Hook functions are defined in skk-setup.el.
 ;;
 ;; 1. always invoke skk isearch.
 ;;
-;; (add-hook 'isearch-mode-hook 'skk-isearch-mode-setup)
-;; (add-hook 'isearch-mode-end-hook 'skk-isearch-mode-cleanup)
+;; (setq skk-isearch-mode-enable 'always)
 ;;
 ;; 2. invoke only if skk-mode is on.
 ;;
-;; (add-hook 'isearch-mode-hook
-;;	  (lambda ()
-;;	    (if (and (boundp 'skk-mode)
-;;		     skk-mode)
-;;		(skk-isearch-mode-setup))))
-;;
-;; (add-hook 'isearch-mode-end-hook
-;;	  (lambda ()
-;;	    (if (featurep 'skk-isearch)
-;;		(skk-isearch-mode-cleanup))))
+;; (setq skk-isearch-mode-enable t)
 ;;
 ;; 3. invoke if current buffer has japanese characters.
 ;; ...
@@ -192,8 +182,8 @@ internal condition."
 	(t (error "Unknown skk-isearch-start-mode: %s" mode))))
 
 (defun skk-isearch-initial-mode ()
-  "Return the symbolic mode name of skk-isearch used to initialize working
-buffer."
+  "Return a symbol that represents a skk-isearch mode name.
+It is used to initialize the working buffer."
   (cond ((and skk-isearch-use-previous-mode skk-isearch-mode)
 	 ;; use the mode when last isearch is done.  note that the
 	 ;; `skk-isearch-mode' is numerical, so convert it to symbolic
@@ -247,7 +237,7 @@ kakutei'ed and erase the buffer contents."
 					    isearch-mode-map))))))
   (set skk-isearch-overriding-local-map skk-isearch-mode-map)
   ;; Input Method として SKK を使っている場合の対策
-  (when (eval-when-compile skk-running-gnu-emacs)
+  (when (eval-when-compile (featurep 'emacs))
     (when (and current-input-method
 	       (string-match "^japanese-skk" current-input-method))
       (let* ((method current-input-method)
@@ -256,7 +246,7 @@ kakutei'ed and erase the buffer contents."
 		     'skk-auto-fill-inactivate)))
 	(with-current-buffer (get-buffer-create skk-isearch-working-buffer)
 	  (unless current-input-method
-	    (setq inactivate-current-input-method-function func)
+	    (skk-set-deactivate-im-func func)
 	    (setq current-input-method method))))))
   ;; skk-isearch の状態を表す内部変数の設定
   (setq skk-isearch-switch t)
@@ -299,10 +289,10 @@ kakutei'ed and erase the buffer contents."
       (jisx0208-latin
        (skk-jisx0208-latin-mode-on))))
   ;; Input Method として SKK を使っている場合の対策
-  (when (eval-when-compile skk-running-gnu-emacs)
+  (when (eval-when-compile (featurep 'emacs))
     (when (string-match "^japanese-skk" (format "%s" default-input-method))
       (with-current-buffer (get-buffer-create skk-isearch-working-buffer)
-	(inactivate-input-method))))
+	(skk-deactivate-input-method))))
   ;; skk-isearch の状態を表す内部変数の設定
   (setq skk-isearch-switch nil)
   (unless skk-isearch-in-editing
@@ -430,7 +420,7 @@ Optional argument PREFIX is appended if given."
 	    ;; listify this-command-keys.  this works only if it is
 	    ;; string.
 	    (setq unread-command-events
-		  (append (if (= (length (this-command-keys)) 0)
+		  (append (if (zerop (length (this-command-keys)))
 			      (list last-command-event)
 			    (this-command-keys))
 			  nil))
@@ -564,21 +554,30 @@ If the current mode is different from previous, remove it first."
 		  (setq skk-isearch-incomplete-message
 			(skk-isearch-buffer-string))
 		  (skk-isearch-incomplete-message))))))
-    ;;
+
+    ;; isearch-cmds ... Stack of search status sets.
+    ;;   '(["test" "test" 198 198 t 194 nil nil nil 192 t nil]
+    ;;     ["tes" "tes" 197 197 t 194 nil nil nil 192 t nil]
+    ;;     ["te" "te" 196 196 t 194 nil nil nil 192 t nil]
+    ;;     ["t" "t" 195 195 t 194 nil nil nil 192 t nil]
+    ;;     ["" "" 192 t t nil nil nil nil 192 t nil])
+    ;;   or
+    ;;   '([cl-struct-isearch--state "test" "[aa] test" 196 196 t ..]
+    ;;     [cl-struct-isearch--state "tes" "[aa] tes" 195 195 t ..]
+    ;;     [cl-struct-isearch--state "te" "[aa] te" 102 102 t ..]
+    ;;     [cl-struct-isearch--state "t" "[aa] t" 92 92 t ..]
+    ;;     [cl-struct-isearch--state "" "[か] " 78 t t ..]
     (let* ((cmd (nth 1 isearch-cmds))
-	   (oldmsg (if (vectorp cmd)
-		       ;; Emacs 21.3.50 開発版で `isearch-cmds' の各要
-		       ;; 素の形式が list から vector に変更になってし
-		       ;; まったので workaround をおく。以下同様。
-		       (aref cmd 1)
-		     (cadr cmd)))
+	   (oldmsg (if (stringp (aref cmd 0))
+		       (aref cmd 1)	;GNU Emacs 24.2 まで
+		     (aref cmd 2)))	;GNU Emacs 24.3 から
 	   (prompt (skk-isearch-mode-string))
 	   newmsg)
       (unless (or (null cmd)
 		  (string-match (concat "^" (regexp-quote prompt))
 				oldmsg))
-	;; `skk-isearch-delete-char'が呼ばれる前に `skk-isearch-working-buffer'
-	;; 内のモードが切り替えられていた場合、 isearch-cmds  の第 2 要素につい
+	;; `skk-isearch-delete-char' が呼ばれる前に `skk-isearch-working-buffer'
+	;; 内のモードが切り替えられていた場合、 isearch-cmds の第 2 要素につい
 	;; て、 messege の内容を update しないと [DEL] したときのモードの表示が
 	;; おかしくなる。
 	(do ((alist skk-isearch-mode-string-alist (cdr alist))
@@ -588,9 +587,10 @@ If the current mode is different from previous, remove it first."
 			(substring oldmsg (match-end 0)))))
 	    ((or msg (null alist))
 	     (setq newmsg (concat prompt (or msg oldmsg)))
-	     (if (vectorp cmd)
-		 (aset cmd 1 newmsg)
-	       (setcdr cmd (cons newmsg (cddr cmd))))))))
+	     (if (stringp (aref cmd 0))
+		 (aset cmd 1 newmsg)	;GNU Emacs 24.2 まで
+	       (aset cmd 2 newmsg))	;GNU Emacs 24.3 から
+	     ))))
     (isearch-delete-char)))
 
 (defun skk-isearch-kakutei (isearch-function)
@@ -606,7 +606,7 @@ If the current mode is different from previous, remove it first."
 
 (defun skk-isearch-exit (&rest args)
   (interactive "P")
-  (skk-isearch-kakutei (function isearch-exit)))
+  (skk-isearch-kakutei #'isearch-exit))
 
 (defun skk-isearch-newline (&rest args)
   (interactive "P")
@@ -624,7 +624,7 @@ If the current mode is different from previous, remove it first."
 	  (skk-isearch-mode-message))))
     (isearch-message))
    ((event-to-character last-command-event)
-    (skk-isearch-kakutei (function isearch-printing-char)))
+    (skk-isearch-kakutei #'isearch-printing-char))
    (t
     (skk-isearch-mode-message)
     (isearch-message))))
@@ -779,31 +779,31 @@ If the current mode is different from previous, remove it first."
 ;;; This advice will be enabled before skk-isearch is loaded.
 ;;;###autoload
 (defconst skk-isearch-really-early-advice
-  #'(lambda ()
-      (defadvice isearch-message-prefix (around skk-isearch-ad activate)
-	(let ((current-input-method
-	       (unless (and (boundp 'skk-isearch-switch)
-			    skk-isearch-switch)
-		 current-input-method)))
-	  ad-do-it))
-      (defadvice isearch-toggle-input-method (around skk-isearch-ad activate)
-	;; Needed for calling skk-isearch via isearch-x.
-	(cond ((string-match "^japanese-skk"
-			     (format "%s" default-input-method))
+  (lambda ()
+    (defadvice isearch-message-prefix (around skk-isearch-ad activate)
+      (let ((current-input-method
+	     (unless (and (boundp 'skk-isearch-switch)
+			  skk-isearch-switch)
+	       current-input-method)))
+	ad-do-it))
+    (defadvice isearch-toggle-input-method (around skk-isearch-ad activate)
+      ;; Needed for calling skk-isearch via isearch-x.
+      (cond ((string-match "^japanese-skk"
+			   (format "%s" default-input-method))
+	     (let ((skk-isearch-initial-mode-when-skk-mode-disabled
+		    'latin))
+	       (skk-isearch-mode-setup)
+	       (skk-isearch-skk-mode)))
+	    ((null default-input-method)
+	     ad-do-it
+	     (when (string-match "^japanese-skk"
+				 (format "%s" default-input-method))
 	       (let ((skk-isearch-initial-mode-when-skk-mode-disabled
 		      'latin))
-		 (skk-isearch-mode-setup)
-		 (skk-isearch-skk-mode)))
-	      ((null default-input-method)
-	       ad-do-it
-	       (when (string-match "^japanese-skk"
-				   (format "%s" default-input-method))
-		 (let ((skk-isearch-initial-mode-when-skk-mode-disabled
-			'latin))
-		   (skk-isearch-mode-setup))
-		 (inactivate-input-method)))
-	      (t
-	       ad-do-it)))))
+		 (skk-isearch-mode-setup))
+	       (skk-deactivate-input-method)))
+	    (t
+	     ad-do-it)))))
 
 ;;;###autoload
 (unless (featurep 'xemacs)

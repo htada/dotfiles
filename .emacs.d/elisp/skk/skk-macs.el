@@ -4,9 +4,9 @@
 ;; Copyright (C) 1993-2000 Free Software Foundation, Inc.
 
 ;; Maintainer: SKK Development Team <skk@ring.gr.jp>
-;; Version: $Id: skk-macs.el,v 1.160 2010/12/16 11:16:08 skk-cvs Exp $
+;; Version: $Id: skk-macs.el,v 1.192 2013/01/13 09:45:48 skk-cvs Exp $
 ;; Keywords: japanese, mule, input method
-;; Last Modified: $Date: 2010/12/16 11:16:08 $
+;; Last Modified: $Date: 2013/01/13 09:45:48 $
 
 ;; This file is part of Daredevil SKK.
 
@@ -41,11 +41,11 @@
 
 ;;;; macros
 
-(when (eval-when-compile (and skk-running-gnu-emacs
-			      (<= emacs-major-version 22)))
+(when (eval-when-compile (and (featurep 'emacs)
+			      (= emacs-major-version 22)))
   (defmacro ignore-errors (&rest body)
-    "Execute FORMS; if an error occurs, return nil.
-Otherwise, return result of last FORM."
+    "Execute BODY; if an error occurs, return nil.
+Otherwise, return result of last form in BODY."
     `(condition-case nil
 	 (progn
 	   ,@body)
@@ -112,9 +112,9 @@ doesn't give arguments of `interactive'. See `interactive' for details."
 
 (defmacro skk-message (japanese english &rest arg)
   "$B%a%C%;!<%8$rI=<($9$k!#(B
-`skk-japanese-message-and-error' $B$,(B non-nil $B$G$"$l$P(B JAPANESE $B$r!"(B nil $B$G$"$l$P(B
-ENGLISH $B$r%(%3!<%(%j%"$KI=<($9$k!#(BARG $B$O(B `message' $B4X?t$NBh#20z?t0J9_$N0z?t$H(B
-$B$7$FEO$5$l$k!#(B"
+`skk-japanese-message-and-error' $B$,(B non-nil $B$G$"$l$P(B JAPANESE $B$r!"(B nil $B$G(B
+$B$"$l$P(B ENGLISH $B$r%(%3!<%(%j%"$KI=<($9$k!#(B
+ ARG $B$O(B `message' $B4X?t$NBh#20z?t0J9_$N0z?t$H$7$FEO$5$l$k!#(B"
   (append
    (if arg
        (list 'message (list 'if
@@ -129,9 +129,9 @@ ENGLISH $B$r%(%3!<%(%j%"$KI=<($9$k!#(BARG $B$O(B `message' $B4X?t$NBh#20z?t
 
 (defmacro skk-error (japanese english &rest arg)
   "$B%a%C%;!<%8$rI=<($7$F!"%(%i!<$rH/@8$5$;$k!#(B
-`skk-japanese-message-and-error' $B$,(B non-nil $B$G$"$l$P(B JAPANESE $B$r!"(B nil $B$G$"$l$P(B
-ENGLISH $B$r%(%3!<%(%j%"$KI=<($7!"%(%i!<$rH/@8$5$;$k!#(B ARG $B$O(B `error' $B4X?t$NBh(B
-$B#20z?t0J9_$N0z?t$H$7$FEO$5$l$k!#(B"
+`skk-japanese-message-and-error' $B$,(B non-nil $B$G$"$l$P(B JAPANESE $B$r!"(B nil $B$G(B
+$B$"$l$P(B ENGLISH $B$r%(%3!<%(%j%"$KI=<($7!"%(%i!<$rH/@8$5$;$k!#(B
+ ARG $B$O(B `error' $B4X?t$NBh#20z?t0J9_$N0z?t$H$7$FEO$5$l$k!#(B"
   (append
    (if arg
        (list 'error (list 'if
@@ -147,19 +147,19 @@ ENGLISH $B$r%(%3!<%(%j%"$KI=<($7!"%(%i!<$rH/@8$5$;$k!#(B ARG $B$O(B `error' 
 (defmacro skk-yes-or-no-p (japanese english)
   "$B%f!<%6$K(B yes-or-no $B$r<ALd$7!"Ez$($,(B yes $B$@$C$?$i(B t $B$rJV$9!#(B
 `skk-japanese-message-and-error' $B$,(B non-nil $B$G$"$l$P(B JAPANESE $B$r!"(B nil $B$G$"$l(B
-$B$P(B ENGLISH $B$r%W%m%s%W%H$H$7$F(B `yes-or-no-p' $B$r<B9T$9$k!#(B
-`yes-or-no-p' $B$N0z?t$N%W%m%s%W%H$,J#;($KF~$l9~$s$G$$$k>l9g$O$3$N%^%/%m$r;H$&(B
-$B$h$j%*%j%8%J%k$N(B `yes-or-no-p' $B$r;HMQ$7$?J}$,%3!<%I$,J#;($K$J$i$J$$>l9g$,$"(B
-$B$k!#(B"
- (list 'yes-or-no-p (list 'if 'skk-japanese-message-and-error
-				   japanese english)))
+$B$P(B ENGLISH $B$r(B PROMPT $B$H$7$F(B `yes-or-no-p' $B$r<B9T$9$k!#(B
+`yes-or-no-p' $B$N0z?t(B PROMPT $B$,J#;($KF~$l9~$s$G$$$k>l9g$O(B `skk-yes-or-no-p' $B$r(B
+$B;H$&$h$j$b%*%j%8%J%k$N(B `yes-or-no-p' $B$r;HMQ$7$?J}$,%3!<%I$,J#;($K$J$i$J$$>l9g(B
+$B$,$"$k!#(B"
+  (list 'yes-or-no-p (list 'if 'skk-japanese-message-and-error
+			   japanese english)))
 
 (defmacro skk-y-or-n-p (japanese english)
   "$B%f!<%6$K(B \"y or n\" $B$r<ALd$7!"Ez$($,(B \"y\" $B$@$C$?$i(B t $B$rJV$9!#(B
 `skk-japanese-message-and-error' $B$,(B non-nil $B$G$"$l$P(B JAPANESE $B$r!"(B nil $B$G$"$l(B
-$B$P(B ENGLISH $B$r%W%m%s%W%H$H$7$F(B `y-or-n-p' $B$r<B9T$9$k!#(B"
+$B$P(B ENGLISH $B$r(B PROMPT $B$H$7$F(B `y-or-n-p' $B$r<B9T$9$k!#(B"
   (list 'y-or-n-p (list 'if 'skk-japanese-message-and-error
-				japanese english)))
+			japanese english)))
 
 (defmacro skk-set-marker (marker position &optional buffer)
   "$B%^!<%+(B MARKER $B$r(B BUFFER $B$N(B POSITION $B$K0\F0$9$k!#(B
@@ -222,37 +222,85 @@ MARKER $B$,(B nil $B$@$C$?$i!"?75,%^!<%+!<$r:n$C$FBeF~$9$k!#(B"
 	 (set-buffer buf)
 	 ,@body))))
 
+(defmacro skk-called-interactively-p (&optional kind)
+  (cond ((featurep 'xemacs)
+	 ;; XEmacs
+	 ;; `called-interactively-p' is not defined.
+	 '(interactive-p))
+
+	((or (>= emacs-major-version 24)
+	     (and (= emacs-major-version 23)
+		  (>= emacs-minor-version 2)))
+	 ;; GNU Emacs 23.2 or later
+	 ;; `called-interactively-p' takes one argument.
+	 `(called-interactively-p ,kind))
+
+	(t
+	 ;; GNU Emacs 22 and 23.1
+	 ;; `called-interactively-p' takes no argument and is equivalent
+	 ;; to (called-interactively-p 'any) in later Emacs versions.
+	 `(if (eq ,kind 'interactive)
+	      (interactive-p)
+	    (called-interactively-p)))))
+
+(defmacro skk-delete-overlay (list)
+  ;; skk-dcomp-multiple-hide $B$H(B skk-inline-hide $B$rE}9g$7$?!#(B
+  `(when ,list
+     (dolist (o ,list)
+       (delete-overlay o))
+     (setq ,list nil)))
+
+(defmacro skk-set-deactivate-im-func (func)
+  (cond ((boundp 'deactivate-current-input-method-function)
+	 ;; GNU Emacs 24.2 $B$+$i(B
+	 `(setq deactivate-current-input-method-function ,func))
+
+	(t
+	 ;; GNU Emacs 24.1 $B$^$G(B
+	 `(setq inactivate-current-input-method-function ,func))
+	))
+
+(defmacro skk-deactivate-input-method ()
+  (cond ((fboundp 'deactivate-input-method)
+	 ;; GNU Emacs 24.2 $B$+$i(B
+	 '(deactivate-input-method))
+	(t
+	 ;; GNU Emacs 24.1 $B$^$G(B
+	 '(inactivate-input-method))
+	))
+
+
 ;;; functions.
 ;; version dependent
 ;; Many functions are derived from emu (APEL).
 
-(when (eval-when-compile (and skk-running-gnu-emacs
-			      (<= emacs-major-version 22)))
+(when (eval-when-compile (and (featurep 'emacs)
+			      (= emacs-major-version 22)))
   (defalias 'characterp 'char-valid-p))
 
-(when (eval-when-compile skk-running-gnu-emacs)
+(when (eval-when-compile (featurep 'emacs))
   (defalias 'int-char 'identity))
 
-(when (eval-when-compile skk-running-gnu-emacs)
+(when (eval-when-compile (featurep 'emacs))
   (defun string-to-char-list (string)
     "Return a list of which elements are characters in the STRING."
     (mapcar #'identity string)))
 
-(when (eval-when-compile skk-running-gnu-emacs)
+(when (eval-when-compile (featurep 'emacs))
   (defalias 'string-to-int-list 'string-to-char-list))
 
 (when (eval-when-compile (featurep 'xemacs))
   (defun string-to-int-list (str)
     (mapcar #'char-int str)))
 
-(when (eval-when-compile skk-running-gnu-emacs)
+(when (eval-when-compile (featurep 'emacs))
   (defun character-to-event (ch)
     "Convert keystroke CH into an event structure, replete with bucky bits.
 Note that CH (the keystroke specifier) can be an integer, a character
 or a symbol such as 'clear."
     ch))
 
-(when (eval-when-compile skk-running-gnu-emacs)
+(when (eval-when-compile (featurep 'emacs))
   (defun event-to-character (event)
     "Return the character approximation to the given event object.
 If the event isn't a keypress, this returns nil."
@@ -263,19 +311,18 @@ If the event isn't a keypress, this returns nil."
 	(if mask
 	    (let ((base (get (car mask) 'ascii-character)))
 	      (if base
-		  (logior base (car (cdr mask))))))))
+		  (logior base (cadr mask)))))))
      ((integerp event)
       event))))
 
-(when (eval-when-compile skk-running-gnu-emacs)
+(when (eval-when-compile (featurep 'emacs))
   (defun cancel-undo-boundary ()
     "Cancel undo boundary."
     (if (and (consp buffer-undo-list)
 	     (null (car buffer-undo-list)))
 	(setq buffer-undo-list (cdr buffer-undo-list)))))
 
-(unless (eval-when-compile (and skk-running-gnu-emacs
-				(>= emacs-major-version 22)))
+(when (eval-when-compile (featurep 'xemacs))
   (defun substring-no-properties (string &optional from to)
     "Return a substring of string, without text properties.
 It starts at index from and ending before to.
@@ -351,7 +398,7 @@ and replace a sub-expression, e.g.
 	(apply #'concat (nreverse matches))))))
 
 ;; For GNU Emacs.
-(when (eval-when-compile skk-running-gnu-emacs)
+(when (eval-when-compile (featurep 'emacs))
   (defun next-command-event (&optional event prompt)
     "Read an event object from the input stream.
 If EVENT is non-nil, it should be an event object and will be filled
@@ -371,18 +418,6 @@ but the contents viewed as characters do change.
 \[Emacs 20.3 emulating function]"
   flag))
 
-(defun skk-sit-for (seconds &optional nodisplay)
-  "`sit-for' $B$N(B Emacsen $B$K$h$k0c$$$r5[<}$9$k!#(B"
-  (cond
-   ((eval-when-compile (featurep 'xemacs))
-    (sit-for seconds nodisplay))
-   ((eval-when-compile (= emacs-major-version 21))
-    ;; GNU Emacs 21
-    (sit-for seconds nil nodisplay))
-   (t
-    ;; GNU Emacs 22.1 or later
-    (sit-for seconds nodisplay))))
-
 (defun skk-ding (&optional arg sound device)
   "`ding' $B$N(B Emacsen $B$K$h$k0c$$$r5[<}$9$k!#(B"
   (cond
@@ -395,7 +430,7 @@ but the contents viewed as characters do change.
   (cond
    ((eval-when-compile (featurep 'xemacs))
     (eq (device-class (selected-device)) 'color))
-   ((eval-when-compile skk-running-gnu-emacs)
+   ((eval-when-compile (featurep 'emacs))
     (and (skk-find-window-system)
 	 (fboundp 'x-display-color-p)
 	 (x-display-color-p)))))
@@ -403,7 +438,7 @@ but the contents viewed as characters do change.
 (defun skk-char-to-unibyte-string (char)
   (ignore-errors
     (cond
-     ((eval-when-compile (and skk-running-gnu-emacs
+     ((eval-when-compile (and (featurep 'emacs)
 			      (>= emacs-major-version 23)))
       ;; GNU Emacs 23.1 or later
       (string-make-unibyte (char-to-string char)))
@@ -412,7 +447,7 @@ but the contents viewed as characters do change.
 
 (defun skk-ascii-char-p (char)
   (cond
-   ((eval-when-compile (and skk-running-gnu-emacs
+   ((eval-when-compile (and (featurep 'emacs)
 			    (>= emacs-major-version 23)))
     ;; GNU Emacs 23.1 or later
     (eq (char-charset char skk-charset-list) 'ascii))
@@ -421,7 +456,7 @@ but the contents viewed as characters do change.
 
 (defun skk-jisx0208-p (char)
   (cond
-   ((eval-when-compile (and skk-running-gnu-emacs
+   ((eval-when-compile (and (featurep 'emacs)
 			    (>= emacs-major-version 23)))
     ;; GNU Emacs 23.1 or later
     (eq (char-charset char skk-charset-list) 'japanese-jisx0208))
@@ -430,7 +465,7 @@ but the contents viewed as characters do change.
 
 (defun skk-jisx0213-p (char)
   (cond
-   ((eval-when-compile (and skk-running-gnu-emacs
+   ((eval-when-compile (and (featurep 'emacs)
 			    (>= emacs-major-version 23)))
     ;; GNU Emacs 23.1 or later
     (memq (char-charset char skk-charset-list)
@@ -438,15 +473,16 @@ but the contents viewed as characters do change.
 	    japanese-jisx0213.2004-1
 	    japanese-jisx0213-2)))
    (t
-    (and (featurep 'jisx0213)
+    (and (featurep 'jisx0213)		; Mule-UCS
 	 (memq (char-charset char)
 	       '(japanese-jisx0213-1 japanese-jisx0213-2))))))
 
 (defun skk-split-char (ch)
+  ;; http://mail.ring.gr.jp/skk/200908/msg00006.html
   (cond
-   ((eval-when-compile (and skk-running-gnu-emacs
+   ((eval-when-compile (and (featurep 'emacs)
 			    (>= emacs-major-version 23)))
-    ;; C $B$N(B split-char $B$HF1MM$N5!G=$@$,!"(Bchar-charset $B$N8F=P$7$K$*$$$F(B
+    ;; C $B$N(B split-char() $B$HF1MM$N5!G=$@$,!"(Bchar-charset() $B$N8F=P$7$K$*$$$F(B
     ;; $BJ8;z=89g$NA*Br;h$r(B skk-charset-list $B$K4^$^$l$k$b$N$K@)8B$9$k!#(B
     ;; $B$3$l$ONc$($P!"(Bjapanese-jisx0208 $B$NJ8;z$,(B unicode-bmp $B$KB0$9$k!"(B
     ;; $B$HH=Dj$5$l$k$h$&$J>u67$r2sHr$9$k!#(B
@@ -461,8 +497,17 @@ but the contents viewed as characters do change.
 	(setq dimension (1- dimension)))
       (cons charset val)))
    (t
-    ;; Emacs 22 $B0JA0!"$*$h$S(B XEmacs
+    ;; Emacs 22 $B$*$h$S(B XEmacs
     (split-char ch))))
+
+(defun skk-char-charset (ch &optional restriction)
+  (cond
+   ((eval-when-compile (and (featurep 'emacs)
+			    (>= emacs-major-version 23)))
+    ;; GNU Emacs 23.1 or later
+    (char-charset ch restriction))
+   (t
+    (char-charset ch))))
 
 ;; this one is called once in skk-kcode.el, too.
 (defun skk-charsetp (object)
@@ -479,14 +524,12 @@ but the contents viewed as characters do change.
     (if (stringp indicator)
 	indicator
       (cdr indicator)))
-   ((eval-when-compile (>= emacs-major-version 21))
+   (t
     (if no-properties
 	(with-temp-buffer
 	  (insert indicator)
 	  (buffer-substring-no-properties (point-min) (point-max)))
-      indicator))
-   (t
-    indicator)))
+      indicator))))
 
 (defun skk-mode-string-to-indicator (mode string)
   "$BJ8;zNs(B STRING $B$r(B SKK $B%$%s%8%1!<%?7?%*%V%8%'%/%H$KJQ49$9$k!#(B"
@@ -554,13 +597,13 @@ BUFFER defaults to the current buffer."
 
 (defun skk-region-active-p ()
   (cond
-   ((eval-when-compile (and skk-running-gnu-emacs
+   ((eval-when-compile (and (featurep 'emacs)
 			    (>= emacs-major-version 23)))
     (use-region-p))
    ((eval-when-compile (featurep 'xemacs))
     (region-active-p))
    (t
-    ;; GNU Emacs 21 and 22.
+    ;; GNU Emacs 22.
     (and transient-mark-mode mark-active))))
 
 (put 'skk-bind-last-command-char 'lisp-indent-function 1)
@@ -572,6 +615,13 @@ BUFFER defaults to the current buffer."
     `(let ((,variable ,char))
        (progn
 	 ,@body))))
+
+(defun skk-process-kill-without-query (process)
+  (cond
+   ((eval-when-compile (featurep 'emacs))
+    (set-process-query-on-exit-flag process nil))
+   (t
+    (process-kill-without-query process))))
 
 ;;; version independent
 
@@ -588,10 +638,6 @@ BUFFER defaults to the current buffer."
   (when (or skk-use-color-cursor
 	    force)
     (skk-cursor-set-1 color)))
-
-(defsubst skk-inline-hide ()
-  (when skk-inline-overlays
-    (skk-inline-hide-1)))
 
 (defun skk-cursor-off ()
   (unless (skk-color-cursor-display-p)
@@ -630,9 +676,9 @@ BUFFER defaults to the current buffer."
 ;;(defsubst skk-get-char (tree)
 ;;  (car tree))
 ;;
-;; skk-current-rule-tree $B$KBP$7$FGK2uE*$JA`:n$O9T$J$($J$$!#(Bskk-rule-tree $B$N(B
-;; $BFbMF$^$GJQ$o$C$F$7$^$$!"(Bskk-current-rule-tree $B$N(B initialize $B$,<j7Z$K9T$J(B
-;; $B$($J$/$J$k!#$3$3$,2r7h$G$-$l$P(B skk-prefix $B$rA4LG$G$-$k$N$K(B...$B!#(B
+;; skk-current-rule-tree $B$KBP$7$FGK2uE*$JA`:n$O9T$($J$$!#(Bskk-rule-tree $B$N(B
+;; $BFbMF$^$GJQ$o$C$F$7$^$$!"(Bskk-current-rule-tree $B$N(B initialize $B$,<j7Z$K9T$((B
+;; $B$J$/$J$k!#$3$3$,2r7h$G$-$l$P(B skk-prefix $B$rA4LG$G$-$k$N$K(B...$B!#(B
 ;;(defsubst skk-set-char (tree char)
 ;;  (setcar tree char))
 ;;
@@ -671,7 +717,7 @@ BUFFER defaults to the current buffer."
 
 (defun skk-erase-prefix (&optional clean)
   "`skk-echo' $B$,(B non-nil $B$G$"$l$P8=:_I=<($5$l$F$$$k(B `skk-prefix' $B$r>C$9!#(B
-$B%*%W%7%g%s0z?t$N(B CLEAN $B$,;XDj$5$l$k$H!"JQ?t$H$7$F$N(B `skk-prefix' $B$r6uJ8;z$K!"(B
+$B%*%W%7%g%J%k0z?t$N(B CLEAN $B$,;XDj$5$l$k$H!"JQ?t$H$7$F$N(B `skk-prefix' $B$r6uJ8;z$K!"(B
 `skk-current-rule-tree' $B$r(B nil $B$K=i4|2=$9$k!#(B"
   ;; $B$+$JJ8;z$NF~NO$,$^$@40@.$7$F$$$J$$>l9g$K$3$N4X?t$,8F$P$l$?$H$-$J$I$O(B
   ;; $BI=<($5$l$F$$$k(B skk-prefix $B$O:o=|$7$?$$$,!"JQ?t$H$7$F$N(B skk-prefix $B$O(B
@@ -728,6 +774,9 @@ BUFFER defaults to the current buffer."
        (>= ?z char)))
 
 (defsubst skk-downcase (char)
+  "$BO"A[%j%9%H(B `skk-downcase-alist' $B$K3:Ev$"$l$P(B (assq)$B!"MWAG(B($B;R%j%9%H(B)$B$N(B cdr $B$rJV$9!#(B
+$B3:Ev$J$1$l$P(B $B4X?t(B `downcase'$B$N7k2L$rJV$9!#(B
+$B4X?t(B `skk-set-henkan-point' $B$+$i8F$P$l$F$$$k!#(B"
   (or (cdr (assq char skk-downcase-alist))
       (downcase char)))
 
@@ -814,13 +863,8 @@ BUFFER defaults to the current buffer."
   (cond
    ((eval-when-compile (featurep 'xemacs))
     nil) ; XEmacs $B$G%5%]!<%H$5$l$J$$5!G=(B
-   ((eval-when-compile (and skk-running-gnu-emacs
-			      (>= emacs-major-version 22)))
-    (window-body-height)) ; emacs21 $B$K$O$J$$(B
    (t
-    (- (window-height)
-       (if mode-line-format 1 0)
-       (if header-line-format 1 0)))))
+    (window-body-height)))) ; emacs21 $B$K$O$J$$(B
 
 (defun skk-screen-column ()
   "$B%9%/%j!<%s9T$+$iF@$?%+!<%=%k0LCV$N7e?t$rJV$9!#(B
@@ -839,6 +883,10 @@ BUFFER defaults to the current buffer."
   (move-to-column (+ (current-column)	;$B%F%-%9%H9T$+$i8+$?7e?t(B
 		     (- col (skk-screen-column))))
   (skk-screen-column))
+
+(defun skk-max-string-width (list)
+  "LIST $B$N3FMWAG$NCf$+$i!":GD9$N%3%i%`I}(B (string-width) $B$rJV$9!#(B"
+  (apply 'max (mapcar 'string-width list)))
 
 (defun skk-insert-prefix (&optional char)
   "`skk-echo' $B$,(B non-nil $B$G$"$l$P%+%l%s%H%P%C%U%!$K(B `skk-prefix' $B$rA^F~$9$k!#(B"
@@ -868,7 +916,7 @@ BUFFER defaults to the current buffer."
 $BBP$7$F(B emacs-mule $B$N(B encoded string $B$KJQ49$7$FHf3S$9$k!#(B
 $BHf3S$N7k2L(B str1 < str2 $B$J$i$P(B t $B$rJV$9!#(B"
   (cond
-   ((eval-when-compile (and skk-running-gnu-emacs
+   ((eval-when-compile (and (featurep 'emacs)
 			    (>= emacs-major-version 23)))
     ;; Emacs with coding system utf-8-emacs
     (skk-string-lessp-in-coding-system str1 str2 'emacs-mule))
@@ -876,7 +924,7 @@ BUFFER defaults to the current buffer."
     (string< str1 str2))))
 
 (defsubst skk-string<= (str1 str2)
-  "STR1 $B$H(B STR2 $B$H$rHf3S$7$F!"(Bstring< $B$+(B string= $B$G$"$l$P!"(Bt $B$rJV$9!#(B"
+  "STR1 $B$H(B STR2 $B$H$rHf3S$7$F!"(B`string<' $B$+(B `string=' $B$G$"$l$P!"(Bt $B$rJV$9!#(B"
   (or (skk-string< str1 str2)
       (string= str1 str2)))
 
@@ -998,27 +1046,25 @@ BUFFER defaults to the current buffer."
   (nth 1 (buffer-list)))
 
 (defun skk-quote-char-1 (word alist)
-  (mapconcat
-   #'(lambda (char)
-       (or (cdr (assq char alist))
-	   (char-to-string char)))
+  (mapconcat (lambda (char)
+	       (or (cdr (assq char alist))
+		   (char-to-string char)))
    ;; $BJ8;zNs$rBP1~$9$k(B char $B$N%j%9%H$KJ,2r$9$k!#(B
-   (append word nil) ""))
+	     (append word nil) ""))
 
 (defun skk-key-binding-member (key commands &optional map)
   "$BF~NO(B KEY $B$,H/F0$9$k%3%^%s%I$,!"(BCOMMANDS $B$K4^$^$l$l$P(B non-nil $B$rJV$9!#(B
 MAP $B$OF~NO$,=q$+$l$F$$$k%-!<%^%C%W$r;XDj$9$k$,!";XDj$5$l$J$1$l$P(B
 `skk-j-mode-map' $B$r;2>H$9$k!#(B
 $B$3$N4X?t$O!"F~NO(B KEY $B$,(B `lookup-key' $B$GC5$;$J$$7A<0$G$"$j$&$k>l9g$KMQ$$$k!#(B"
+  (unless map
+    (setq map skk-j-mode-map))
   (let (keys)
-    (unless map
-      (setq map skk-j-mode-map))
     (dolist (command commands)
       (setq keys (nconc keys
 			(where-is-internal command map))))
     (member (key-description key)
-	    (mapcar #'(lambda (k)
-			(key-description k))
+	    (mapcar #'key-description
 		    keys))))
 
 (defun skk-update-minor-mode-map-alist (mode map)
@@ -1051,6 +1097,29 @@ Return the modified ALIST."
   "Delete an element whose car equals KEY from the alist bound to SYMBOL."
   (and (boundp symbol)
        (set symbol (skk-del-alist key (symbol-value symbol)))))
+
+(defun skk-fit-window (&optional window)
+  "$B%+%l%s%H%&%#%s%I%&(B ($BKt$O(B WINDOW) $B$r!"$=$NI=<(FbMF$K1~$8$?9b$5$KD4@a$9$k!#(B"
+  (unless (eval-when-compile (and (featurep 'xemacs)
+				  (= emacs-major-version 21)
+				  (<= emacs-minor-version 4)))
+    ;; XEmacs 21.4 $B$K$O$J$$4X?t(B
+    (fit-window-to-buffer window)))
+
+(defun skk-reset-henkan-count (count)
+  ;; $B"&%b!<%I$KLa$k$H$-$O(B 0
+  ;; $B"'%b!<%I$N$^$^8uJd0lMw$N<jA0$KLa$k$H$-$O(B 4
+  (skk-set-henkan-count count)
+  (skk-unread-event (character-to-event
+		     (aref (car (where-is-internal
+				 'skk-previous-candidate
+				 skk-j-mode-map))
+			   0))))
+
+(defun skk-escape-from-show-candidates (count)
+  ;; skk-henkan $B$^$G0l5$$K(B throw $B$9$k!#(B
+  (skk-reset-henkan-count count)
+  (throw 'unread nil))
 
 (provide 'skk-macs)
 

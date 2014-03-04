@@ -7,9 +7,9 @@
 
 ;; Author: Masahiko Sato <masahiko@kuis.kyoto-u.ac.jp>
 ;; Maintainer: SKK Development Team <skk@ring.gr.jp>
-;; Version: $Id: skk-tut.el,v 1.79 2010/11/10 19:25:03 skk-cvs Exp $
+;; Version: $Id: skk-tut.el,v 1.90 2012/08/28 12:14:21 skk-cvs Exp $
 ;; Keywords: japanese, mule, input method
-;; Last Modified: $Date: 2010/11/10 19:25:03 $
+;; Last Modified: $Date: 2012/08/28 12:14:21 $
 
 ;; This file is part of Daredevil SKK.
 
@@ -104,10 +104,10 @@
     (skk-henkan-show-candidates-rows . 1)
     (skk-show-candidates-always-pop-to-buffer . nil)
     (skk-henkan-strict-okuri-precedence . nil)
-    (skk-previous-candidate-char
-     . (if (equal skk-tut-file skktut-nicola-tut-file)
-	   ?\C-p
-	?x))
+    (skk-previous-candidate-keys
+     . (if (skk-tut-nicola-p)
+	   '("\C-p")
+	 '("\C-p" "x")))
     (skk-hiragana-mode-string . " かな")
     (skk-init-file . "")
     (skk-input-by-code-menu-keys1 . '(?a ?s ?d ?f ?g ?h ?q ?w ?e ?r ?t ?y))
@@ -123,15 +123,14 @@
     (skk-kakutei-early . t)
     (skk-kakutei-key . "\C-j")
     (skk-kana-input-search-function
-     . (function
-	(lambda ()
-	  (save-match-data
-	    (when (and (string-match
-			"^h\\([bcdfghjklmnpqrstvwxz]\\)$"
-			skk-prefix)
-		       (member (char-to-string (preceding-char))
-			       '("お" "オ")))
-	      (cons '("オ" . "お") (match-string 1 skk-prefix)))))))
+     . (lambda ()
+	 (save-match-data
+	   (when (and (string-match
+		       "^h\\([bcdfghjklmnpqrstvwxz]\\)$"
+		       skk-prefix)
+		      (member (char-to-string (preceding-char))
+			      '("お" "オ")))
+	     (cons '("オ" . "お") (match-string 1 skk-prefix))))))
     (skk-katakana-mode-string . " カナ")
     (skk-kcode-load-hook . nil)
     (skk-keep-record . nil)
@@ -286,10 +285,9 @@
     (skk-start-henkan-key . " ")
     (skk-try-completion-char . ?\011)
     (skk-update-jisyo-function . 'skktut-update-jisyo)
-    (skk-use-color-cursor
-     . (and window-system
-	    (fboundp 'x-display-color-p)
-	    (x-display-color-p)))
+    (skk-use-color-cursor . (and window-system
+				 (fboundp 'x-display-color-p)
+				 (x-display-color-p)))
     (skk-use-face . window-system)
     (skk-use-look . nil)
     (skk-use-numeric-conversion . t)
@@ -302,7 +300,15 @@
     (skk-kcode-charset . (if (featurep 'jisx0213)
 			     (quote japanese-jisx0208)
 			   skk-kcode-charset))
+    (skk-kcode-method . (if (featurep 'emacs)
+			    'code-or-char-list
+			  'code-or-menu))
     (skk-dcomp-activate . nil)
+    (skk-dcomp-multiple-activate . nil)
+    (skk-read-from-minibuffer-function . nil)
+    (skk-verbose . nil)
+    (debug-on-error . nil)
+    (skk-show-mode-show . nil)
 
     ;; not user variables but to be localized.
     (skk-insert-new-word-function . nil)
@@ -310,10 +316,9 @@
     (skk-rule-tree
      .
      (if (and skk-use-kana-keyboard
-	     (memq skk-kanagaki-keyboard-type
-		   '(oasys
-		     nicola-jis nicola-us nicola-dvorak
-		     omelet-jis omelet-us omelet-dvorak))
+	     (memq skk-kanagaki-keyboard-type '(oasys
+						nicola-jis nicola-us nicola-dvorak
+						omelet-jis omelet-us omelet-dvorak))
 	     (eq skk-kanagaki-state 'kana)
 	     skktut-nicola-tut-file)
 	 skk-kanagaki-rule-tree
@@ -321,12 +326,9 @@
 			      skk-rom-kana-rule-list))))
   "skk.el のユーザー変数のリスト。")
 
-(defvar skktut-nicola-tut-file
-  (when skk-tut-file
-    (expand-file-name "NICOLA-SKK.tut"
-		      (expand-file-name
-		       (file-name-directory skk-tut-file))))
-  "NICOLA-DDSKK のためのチュートリアルファイル。")
+(defvar skktut-nicola-tut-file "NICOLA-SKK.tut"
+  "NICOLA-DDSKK のためのチュートリアルファイル名。
+ディレクトリ名は含まない。")
 
 (defvar skktut-japanese-tut nil
   "Non-nil であれば、チュートリアルが日本語であることを示す。")
@@ -426,14 +428,14 @@
 
 (defadvice skk-kakutei (before skktut-ad disable)
   "SKK チュートリアル用アドバイス付。"
-  (when (and (interactive-p)
+  (when (and (skk-called-interactively-p 'interactive)
 	     (= skktut-question-count 1))
     (skktut-error "このキーはまだ使えません"
 		  "Cannot use this key yet")))
 
 (defadvice skk-mode (before skktut-ad disable)
   "SKK チュートリアル用アドバイス付。"
-  (when (and (interactive-p)
+  (when (and (skk-called-interactively-p 'interactive)
 	     (= skktut-question-count 1))
     (skktut-error "このキーはまだ使えません"
 		  "Cannot use this key yet")))
@@ -446,19 +448,19 @@
 
 ;; hooks
 (add-hook 'kill-buffer-hook
-	  #'(lambda ()
-	      (when (and (interactive-p)
-			 (member (buffer-name (current-buffer))
-				 (list skktut-working-buffer
-				       skktut-question-buffer
-				       skktut-answer-buffer
-				       skktut-jisyo-buffer)))
-		(skk-tutorial-quit 'now))))
+	  (lambda ()
+	    (when (and (skk-called-interactively-p 'interactive)
+		       (member (buffer-name (current-buffer))
+			       (list skktut-working-buffer
+				     skktut-question-buffer
+				     skktut-answer-buffer
+				     skktut-jisyo-buffer)))
+	      (skk-tutorial-quit 'now))))
 
 (add-hook 'kill-emacs-hook
-	  #'(lambda ()
-	      (when (buffer-live-p (get-buffer skktut-jisyo-buffer))
-		(skk-tutorial-quit 'now))))
+	  (lambda ()
+	    (when (buffer-live-p (get-buffer skktut-jisyo-buffer))
+	      (skk-tutorial-quit 'now))))
 
 ;; interactive commands. prefix should be `skk-tutorial'.
 ;;;###autoload
@@ -485,28 +487,47 @@ You can select English version by \\[universal-argument] \\[skk-tutorial]."
 	     (eq skk-kanagaki-state 'kana)
 	     skktut-nicola-tut-file)
     (skk-nicola-setup-tutorial)
-    (setq skk-tut-file skktut-nicola-tut-file))
+    (setq skk-tut-file (expand-file-name skktut-nicola-tut-file
+					 (file-name-directory skk-tut-file))))
   ;;
-  (when query-language
-    (let* ((lang (completing-read "Language: "
-				  skk-tut-file-alist))
-	   (file (cdr (assoc lang skk-tut-file-alist))))
-      (unless (file-exists-p (expand-file-name file))
-	(error "No file found as %s" file))
-      (setq skk-tut-file file)
+  (let ((file skk-tut-file))
+    (when (and (null skk-tut-current-lang)
+	       skk-tut-lang)
+      (setq skk-tut-current-lang skk-tut-lang))
+    (when query-language
+      (setq skk-tut-current-lang (completing-read "Language: "
+						  skk-tut-file-suffix-alist))
       (message "Language for the tutorial is %s until you exit Emacs"
-	       lang)))
-  (let ((inhibit-quit t))
-    (skktut-pre-setup-tutorial)
-    (skktut-setup-jisyo-buffer)
-    (skktut-setup-working-buffer)
-    (skktut-setup-question-buffer)
-    (skktut-setup-answer-buffer)
-    (skktut-enable-advice)
-    (skktut-enable-tutmap)
-    (add-hook 'minibuffer-setup-hook 'skktut-localize-and-init-variables)
-    (skktut-make-windows))
-  (skktut-setup-delete-backward-char))
+	       skk-tut-current-lang))
+    (when skk-tut-current-lang
+      (setq file (skk-tut-find-tut-file file)))
+    (unless (file-exists-p (expand-file-name file))
+	(error "No file found as %s" file))
+    (let ((inhibit-quit t))
+      (skktut-pre-setup-tutorial)
+      (skktut-setup-jisyo-buffer)
+      (skktut-setup-working-buffer file)
+      (skktut-setup-question-buffer)
+      (skktut-setup-answer-buffer)
+      (skktut-enable-advice)
+      (skktut-enable-tutmap)
+      (add-hook 'minibuffer-setup-hook 'skktut-localize-and-init-variables)
+      (skktut-make-windows))
+    (skktut-setup-delete-backward-char)))
+
+(defun skk-tut-nicola-p ()
+  (equal skk-tut-file (expand-file-name skktut-nicola-tut-file
+					(file-name-directory skk-tut-file))))
+
+(defun skk-tut-find-tut-file (file)
+  (cond
+   ((skk-tut-nicola-p)
+    skk-tut-file)
+   (t
+    (when (string-match "SKK\\.tut\\.\\w" file)
+      (setq file (substring file 0 (- (match-end 0) 2))))
+    (concat file (cdr (assoc skk-tut-current-lang
+			     skk-tut-file-suffix-alist))))))
 
 (defun skk-tutorial-again (&optional now)
   "ユーザの同意があれば SKK チュートリアルを最初からやり直す。
@@ -608,9 +629,10 @@ You can select English version by \\[universal-argument] \\[skk-tutorial]."
     (unless (< 22 height)
       ;; Keep at least 23 lines for the upper window.
       (enlarge-window (- 23 height))))
-  (other-window 1)
+;;   (other-window 1)
   ;; make it selected window and current buffer.
-  (switch-to-buffer skktut-answer-buffer)
+;;   (switch-to-buffer skktut-answer-buffer)
+  (pop-to-buffer skktut-answer-buffer)
   ;; not make it current buffer but visible.
   (display-buffer skktut-question-buffer)
   (setq skktut-working-window-configuration
@@ -636,11 +658,9 @@ You can select English version by \\[universal-argument] \\[skk-tutorial]."
     (skk-update-minor-mode-map-alist 'skk-abbrev-mode skktut-abbrev-mode-map)
     (skk-update-minor-mode-map-alist 'skk-j-mode skktut-j-mode-map)
     (skk-update-minor-mode-map-alist 'skk-jisx0208-mode skktut-jisx0208-latin-mode-map)
-    (define-key skktut-j-mode-map
-      (if (equal skk-tut-file skktut-nicola-tut-file)
-	  "\C-p"
-	"x")
-      'skk-previous-candidate)
+    (define-key skktut-j-mode-map "\C-p" 'skk-previous-candidate)
+    (unless (skk-tut-nicola-p)
+      (define-key skktut-j-mode-map "x" 'skk-previous-candidate))
     (define-key skktut-j-mode-map "\C-j" 'skk-insert)
     (define-key skktut-j-mode-map "\t" 'skk-insert)
     ;; for minor-mode-map-alist localized by Viper.
@@ -752,14 +772,14 @@ tutorial /チュートリアル/
 ")
     (skk-setup-jisyo-buffer)))
 
-(defun skktut-setup-working-buffer ()
+(defun skktut-setup-working-buffer (file)
   (save-match-data
     (let (sexp)
       (set-buffer (get-buffer-create skktut-working-buffer))
       (buffer-disable-undo (current-buffer))
       (skktut-localize-and-init-variables)
       (skktut-erase-buffer) ; fail safe.
-      (insert-file-contents skk-tut-file)
+      (insert-file-contents file)
       ;; Count how many questions there are.
       (setq skktut-question-numbers -1)
       (goto-char (point-min))
@@ -851,9 +871,8 @@ tutorial /チュートリアル/
       (search-backward "\n>>")
       (forward-char 1)
       (setq skktut-right-answer
-	    (buffer-substring-no-properties
-	     (+ 3 (point))
-	     (skk-save-point (end-of-line) (point))))
+	    (buffer-substring-no-properties (+ 3 (point))
+					    (line-end-position)))
       (goto-char (point-min)))
     ;; not to save point.
     (let ((cbuf (current-buffer))
@@ -938,9 +957,7 @@ tutorial /チュートリアル/
       (let (p)
 	(widen)
 	(search-forward "\n>> ")
-	(when (re-search-forward "「.*」"
-				 (skk-save-point (end-of-line) (point))
-				 t)
+	(when (re-search-forward "「.*」" (line-end-position) t)
 	  (delete-region (match-beginning 0) (match-end 0)))
 	(setq p (point))
 	(insert (concat "「きょうは、" (skk-current-date) "です。」"))
@@ -949,7 +966,8 @@ tutorial /チュートリアル/
 	  (put-text-property p (point) 'face skk-tut-question-face))))))
 
 (defun skktut-end-tutorial ()
-  (switch-to-buffer skktut-question-buffer)
+;;  (switch-to-buffer skktut-question-buffer)
+  (pop-to-buffer skktut-question-buffer)
   (delete-other-windows)
   (skktut-erase-buffer)
   (let (buffer-read-only)
@@ -964,13 +982,14 @@ SKK チュートリアルはこれで終りです。
 
 \t%s
 
-迄お送り下さい。なお、このアドレスは SKK Ring Server Openlab Mailing
-List のアドレスです。ただし現在、投稿できるのはメンバーに限られます。
-投稿前に ML に参加してください。ML に参加するには
+迄お送り下さい。このアドレスは SKK Ring Server Openlab Mailing List
+のアドレスです。
+ただし、投稿できるのはメンバーに限られます。投稿する前に ML に参加し
+てください。ML に参加するには、本文と Subject が空のメールを
 
 \t%s
 
-へ本文と Subject が空のメールをお送りください。
+迄お送りください。
 
 !! 最後に <return> キーを押してください。"
 
@@ -1006,7 +1025,8 @@ with both the subject and the body empty.
 	  (skktut-message "<return> キーを押してください"
 			  "Hit <return> key")
 	  (if (and char (eq ?\C-m char))
-	      (setq skktut-tutorial-end t)))))))
+	      (setq skktut-tutorial-end t)))))
+    (message nil)))
 
 (defun skktut-setup-delete-backward-char ()
   (let ((commands '(backward-delete-char-untabify

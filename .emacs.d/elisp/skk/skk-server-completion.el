@@ -20,7 +20,7 @@
 ;;; Commentary:
 
 ;; Server completion に対応した辞書サーバを用い見出し語から始まる全ての
-;; 語句の検索を行ないます。
+;; 語句の検索を行います。
 
 ;; このプログラムは以下の 2 つの機能を提供します。
 ;;
@@ -130,7 +130,7 @@
 		(setq cont nil))))
 	  (goto-char (point-min))
 	  (when skk-server-report-response
-	    (skk-message "辞書サーバーの応答を %d 回待ちました"
+	    (skk-message "辞書サーバの応答を %d 回待ちました"
 			 "Waited for server response %d times"
 			 count))
 	  (when (eq (following-char) ?1) ;?1
@@ -140,9 +140,7 @@
 	    (setq ret
 		  (save-match-data
 		    (split-string (buffer-substring-no-properties
-				   (point) (progn
-					     (end-of-line)
-					     (1- (point))))
+				   (point) (1- (line-end-position)))
 				  sep)))
 	    (when (string= sep "/")
 	      ;; 見出しに '/' を含んでいる時、セパレータの '/' と混同し、
@@ -150,13 +148,13 @@
 	      (setq ret
 		    (delq nil
 			  (let ((len (length key)))
-			    (mapcar #'(lambda (midasi)
-					;; key に完全一致な midasi をどうするか。
-					(when (and (> (length midasi) len)
-						   (string-equal key
-								 (substring midasi
-									    0 len)))
-					  midasi))
+			    (mapcar (lambda (midasi)
+				      ;; key に完全一致な midasi をどうするか。
+				      (when (and (> (length midasi) len)
+						 (string-equal key
+							       (substring midasi
+									  0 len)))
+					midasi))
 				    ret)))))
 	    ret))))))
 

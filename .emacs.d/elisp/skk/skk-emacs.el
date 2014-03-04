@@ -34,16 +34,7 @@
   (require 'skk-vars)
   (require 'skk-macs)
 
-  (defvar tool-bar-border)
-
-  (when (= emacs-major-version 21)
-    (defalias 'window-inside-pixel-edges 'ignore)
-    (defalias 'posn-at-point 'ignore)))
-
-(when (eval-when-compile (= emacs-major-version 21))
-  ;; Emacs 21 では `make-temp-file' の脆弱性に対処するため
-  ;; poe を必要とする。
-  (require 'poe))
+  (defvar tool-bar-border))
 
 (eval-and-compile
   (autoload 'mouse-avoidance-banish-destination "avoid")
@@ -81,14 +72,20 @@
        :keys nil
        :key-sequence nil]
       "--"
+      ["Find kanji by radicals" skk-tankan t]
+      ["Show list of characters" (skk-list-chars nil) t]
+      ["Lookup word in region or at point"
+       skk-annotation-lookup-region-or-at-point t]
+      ["SKK Clock" (skk-clock nil t) t]
+      "--"
       ["Read Manual" skk-emacs-info t]
       ["Start Tutorial" skk-tutorial t]
       ["Customize SKK" skk-customize-group-skk t]
       ["Customize SKK (simple)" skk-customize t]
+      "--"
       ["Send a Bug Report"
        (let (skk-japanese-message-and-error)
 	 (skk-submit-bug-report)) t]
-      "--"
       ["About Daredevil SKK.." skk-version t]
       ["Visit Daredevil Web Site" skk-emacs-visit-openlab t])))
 
@@ -121,6 +118,10 @@
     ("Start Tutorial" . "チュートリアル")
     ("Customize SKK" . "SKK をカスタマイズ")
     ("Customize SKK (simple)" . "SKK をカスタマイズ (簡易版)")
+    ("Find kanji by radicals" . "漢字を部首から調べる")
+    ("Show list of characters" . "文字コード表")
+    ("SKK Clock" . "SKK 時計")
+    ("Lookup word in region or at point" . "領域またはポイントの語句を調べる")
     ("Send a Bug Report" . "バグを報告する")
     ("About Daredevil SKK.." . "Daredevil SKK について..")
     ("Visit Daredevil Web Site" . "Daredevil SKK のサイトへ")))
@@ -199,7 +200,6 @@
 	      (boundp 'mac-carbon-version-string) ; Carbon Emacs
 	      (featurep 'ns) ; Cocoa Emacs
 	      (and (eq window-system 'x)
-		   (>= emacs-major-version 22)
 		   (boundp 'gtk-version-string)
 		   (stringp (symbol-value 'gtk-version-string))
 		   (string< "2.0" (symbol-value 'gtk-version-string))))
@@ -207,10 +207,12 @@
   ;;
   (when skk-show-japanese-menu
     (skk-emacs-menu-replace skk-emacs-modeline-menu)
-    (dolist (map (list skk-j-mode-map skk-latin-mode-map
-		       skk-jisx0208-latin-mode-map skk-abbrev-mode-map))
+    (dolist (map (list skk-j-mode-map
+		       skk-latin-mode-map
+		       skk-jisx0208-latin-mode-map
+		       skk-abbrev-mode-map))
       (skk-emacs-menu-replace (or (assq 'skk (assq 'menu-bar map))
-				(assq 'SKK (assq 'menu-bar map)))))))
+				  (assq 'SKK (assq 'menu-bar map)))))))
 
 (defun skk-emacs-modeline-menu ()
   (interactive)
@@ -248,19 +250,18 @@
 
 (defun skk-emacs-circulate-modes (&optional arg)
   (interactive "P")
-  (cond
-   (skk-henkan-mode
-    nil)
-   ((not skk-mode)
-    (skk-mode arg))
-   (skk-j-mode
-    (if skk-katakana
-	(skk-jisx0208-latin-mode arg)
-      (skk-toggle-kana arg)))
-   (skk-jisx0208-latin-mode
-    (skk-latin-mode arg))
-   (skk-latin-mode
-    (skk-j-mode-on))))
+  (cond (skk-henkan-mode
+	 nil)
+	((not skk-mode)
+	 (skk-mode arg))
+	(skk-j-mode
+	 (if skk-katakana
+	     (skk-jisx0208-latin-mode arg)
+	   (skk-toggle-kana arg)))
+	(skk-jisx0208-latin-mode
+	 (skk-latin-mode arg))
+	(skk-latin-mode
+	 (skk-j-mode-on))))
 
 (defun skk-emacs-info ()
   (interactive)
@@ -278,23 +279,19 @@
 (defun skk-emacs-prepare-modeline-properties ()
   (setq skk-icon
 	(let* ((dir (ignore-errors
-		      (file-name-directory
-		       (if (eval-when-compile (>= emacs-major-version 22))
-			   ;; Emacs 22 以降 `locate-file' が利用可能。
-			   (or (locate-file "skk/skk.xpm"
-					    (list (expand-file-name
-						   "../../.."
-						   data-directory)))
-			       (locate-file "skk/skk.xpm"
-					    (list data-directory)))
-			 ;; Emacs 21
-			 skk-tut-file))))
+		     (file-name-directory
+		      (or (locate-file "skk/skk.xpm"
+				       (list (expand-file-name
+					      "../../.."
+					      data-directory)))
+			  (locate-file "skk/skk.xpm"
+				       (list data-directory))))))
 	       (image (when dir
 			(find-image
 			 `((:type xpm
 				  :file ,(expand-file-name "skk.xpm" dir)
 				  :ascent center)))))
-	       (string "dummy"))
+	       (string "skk"))
 	  (if (and skk-show-icon window-system image)
 	      (apply 'propertize string
 		     (cons 'display (cons image skk-emacs-modeline-property)))
@@ -305,7 +302,11 @@
   ;;
   (when window-system
     (let (face)
-      (dolist (mode '(hiragana katakana jisx0208-latin jisx0201 abbrev))
+      (dolist (mode '(hiragana
+		      katakana
+		      jisx0208-latin
+		      jisx0201
+		      abbrev))
 	(setq face (intern (format "skk-emacs-%s-face" mode)))
 	(unless (facep face)
 	  (make-face face)
@@ -336,6 +337,10 @@
 (defun skk-emacs-menu-replace (list)
   (let ((running-ntemacs (and (eq window-system 'w32)
 			      (not (fboundp 'Meadow-version))))
+	(workaround '("Hiragana"
+		      "Katakana"
+		      "Hankaku alphabet"
+		      "Zenkaku alphabet"))
 	cons)
     (while (and list (listp list))
       (cond
@@ -345,9 +350,7 @@
        ((and (stringp (car-safe list))
 	     (setq cons (assoc (car list) skk-emacs-menu-resource-ja)))
 	(setcar list (if (and running-ntemacs
-			      (member (car list) '("Hiragana" "Katakana"
-						   "Hankaku alphabet"
-						   "Zenkaku alphabet")))
+			      (member (car list) workaround))
 			 ;; NTEmacs で Widget 付きメニューアイテムの
 			 ;; 日本語がうまく表示できない問題への対策
 			 ;; (NTEmacs 22.1, 23.1)
@@ -356,9 +359,7 @@
        ((and (vectorp (car-safe list))
 	     (setq cons (assoc (aref (car list) 0) skk-emacs-menu-resource-ja)))
 	(aset (car list) 0 (if (and running-ntemacs
-				    (member (aref (car list) 0)
-					    '("Hiragana" "Katakana"
-					      "Hankaku alphabet" "Zenkaku alphabet")))
+				    (member (aref (car list) 0) workaround))
 			       ;; NTEmacs で Widget 付きメニューアイテムの
 			       ;; 日本語がうまく表示できない問題への対策
 			       ;; (NTEmacs 22.1, 23.1)
@@ -393,8 +394,8 @@
     ;; compute-motion returns (pos HPOS VPOS prevhpos contin)
     ;; we want:               (frame hpos . vpos)
     (cons (selected-frame)
-	  (cons (+ (car edges)       (car (cdr list)))
-		(+ (car (cdr edges)) (car (cdr (cdr list))))))))
+	  (cons (+ (car edges) (cadr list))
+		(+ (cadr edges) (car (cddr list)))))))
 
 (defun skk-tooltip-max-tooltip-size ()
   (if (boundp 'x-max-tooltip-size)
@@ -429,15 +430,16 @@
 	       (goto-char (point-max)))
 	      ;;
 	      (t
-	       (if (> (progn (end-of-line) (current-column)) max-columns)
-		   (progn
-		     (move-to-column max-columns)
-		     (backward-char)
-		     (if (member (char-to-string (following-char))
-				 skk-auto-start-henkan-keyword-list)
-			 (forward-char))
-		     (insert "\n" indent)
-		     (forward-line -1)))
+	       (when (> (progn (end-of-line)
+			       (current-column))
+			max-columns)
+		 (move-to-column max-columns)
+		 (backward-char)
+		 (if (member (char-to-string (following-char))
+			     skk-auto-start-henkan-keyword-list)
+		     (forward-char))
+		 (insert "\n" indent)
+		 (forward-line -1))
 	       (end-of-line)
 	       (setq current-column (current-column))
 	       (when (> current-column columns)
@@ -450,20 +452,20 @@
     ;; (text . (x . y))
     (cons text (cons columns lines))))
 
+(defun skk-tooltip-relative-p ()
+  (and (featurep 'ns)
+       (< emacs-major-version 24)))
+
 (defun skk-tooltip-show-at-point (text &optional situation)
+  "TEXT を tooltip で表示する。"
   (require 'tooltip)
-  ;; Emacs 21 では、マウスポインタ非依存の位置決定ができない (と思われる)
-  (when (eq emacs-major-version 21)
-    (setq skk-tooltip-mouse-behavior 'follow))
-  ;;
   (let* ((P (cdr (skk-emacs-mouse-position)))
 	 (oP (cdr (mouse-position)))
 	 event
 	 parameters
 	 (avoid-destination (if (memq skk-tooltip-mouse-behavior
 				      '(avoid avoid-maybe banish))
-				(mouse-avoidance-banish-destination)
-			       nil))
+				(mouse-avoidance-banish-destination)))
 	 win
 	 tip-destination
 	 fontsize
@@ -472,8 +474,7 @@
 	 spacing border-width internal-border-width
 	 text-width text-height
 	 screen-width screen-height
-	 (inhibit-quit t)
-	 (tooltip-use-echo-area nil))
+	 (inhibit-quit t))
     ;;
     (when (null (car P))
       (unless (memq skk-tooltip-mouse-behavior '(avoid-maybe banish nil))
@@ -544,22 +545,24 @@
 	    ;; x 座標 (左からの)
 	    left (+ (car tip-destination)
 		    (nth 0 (window-inside-pixel-edges win))
-		    (if (featurep 'ns)
+		    (if (skk-tooltip-relative-p)
 			0
-		      (frame-parameter (selected-frame) 'left))
+		      (eval (frame-parameter (selected-frame) 'left)))
 		    skk-tooltip-x-offset)
 	    ;; y 座標 (上からの)
 	    top  (+ (cdr tip-destination)
 		    (nth 1 (window-inside-pixel-edges win))
-		    (if (featurep 'ns)
+		    (if (skk-tooltip-relative-p)
 			0
 		      (+ (if tool-bar-mode
 			     skk-emacs-tool-bar-height
 			   0)
-			 (if menu-bar-mode
+			 (if (and menu-bar-mode
+				  (not (or (boundp 'mac-carbon-version-string)
+					   (featurep 'ns))))
 			     skk-emacs-menu-bar-height
 			   0)
-			 (frame-parameter (selected-frame) 'top)
+			 (eval (frame-parameter (selected-frame) 'top))
 			 (+ fontsize spacing)))
 		    skk-tooltip-y-offset)
 	    tooltip-info (skk-tooltip-resize-text text)
@@ -572,7 +575,7 @@
 	    screen-width (display-pixel-width)
 	    screen-height (display-pixel-height))
       ;;
-      (unless (featurep 'ns)
+      (unless (skk-tooltip-relative-p)
 	(when (> (+ left text-width) screen-width)
 	  ;; 右に寄りすぎて欠けてしまわないように
 	  (setq left (- left (- (+ left text-width
@@ -594,7 +597,8 @@
 			    (* (frame-pixel-width)))))
 	    (when (and (<= left mouse-x) (<= mouse-x right))
 	      ;; マウスポインタと被りそうなとき
-	      (setq left (- left (- right mouse-x) fontsize))))))))
+	      (setq left (- left (- right mouse-x) fontsize))))))
+      )) ; END **マウスポインタに依存せず tooptip の位置を決定する**
     ;;
     (setq parameters (if (eq skk-tooltip-mouse-behavior 'follow)
 			 skk-tooltip-parameters
@@ -638,6 +642,9 @@
       (skk-unread-event event)))))
 
 (defun skk-tooltip-show-1 (text skk-params)
+  "TEXT を tooltip で表示する。
+SKK-PARAMS は `skk-tooltip-parameters' 又は `tooltip-frame-parameters' のいずれか。
+TEXT には `skk-tooltip-face' が適用される。"
   (condition-case error
       (let ((params (or skk-params tooltip-frame-parameters))
 	    fg bg)
@@ -718,7 +725,7 @@
 		      (<= ch (cdr skkdic-jisx0208-hiragana-block))
 		      (setq code (encode-char ch 'japanese-jisx0208)))
 		 (aset vec i (- (logand code #xFF) 32)))
-		((and (eval-when-compile (<= emacs-major-version 22))
+		((and (eval-when-compile (= emacs-major-version 22))
 		      (setq code (split-char ch))
 		      (eq (car code) 'japanese-jisx0208)
 		      (= (nth 1 code) skkdic-jisx0208-hiragana-block))
