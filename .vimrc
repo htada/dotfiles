@@ -6,11 +6,31 @@ filetype plugin indent off
 set rtp+=~/.vim/bundle/vundle/
 call vundle#rc()
 
-Bundle 'gmarik/vundle'
-Bundle 'vim-perl/vim-perl'
-Bundle 'altercation/vim-colors-solarized'
-Bundle 'molokai'
-Bundle 'JavaScript-syntax'
+if has('vim_starting')
+  set nocompatible               " Be iMproved
+
+  " Required:
+  set runtimepath+=~/.vim/bundle/neobundle.vim/
+endif
+
+" Required:
+call neobundle#begin(expand('~/.vim/bundle/'))
+" Let NeoBundle manage NeoBundle
+" Required:
+NeoBundleFetch 'Shougo/neobundle.vim'
+
+" My Bundles here:
+NeoBundle 'gmarik/vundle'
+NeoBundle 'vim-perl/vim-perl'
+NeoBundle 'altercation/vim-colors-solarized'
+NeoBundle 'molokai'
+NeoBundle 'JavaScript-syntax'
+NeoBundle 'vim-scripts/surround.vim'
+
+call neobundle#end()
+
+filetype plugin indent on
+NeoBundleCheck
 
 " Color ----------------------------------------
 set t_Co=256
@@ -50,5 +70,4 @@ set laststatus=2
 set cmdheight=2               " コマンドラインで利用する行数
 set statusline=[%L]\ %t%r%m%=\ [%{&ff}]\ %{'['.(&fenc!=''?&fenc:&enc).']'}\ %c:%l
 
-filetype plugin indent on
 
