@@ -22,6 +22,7 @@ NeoBundleFetch 'Shougo/neobundle.vim'
 " My Bundles here:
 NeoBundle 'gmarik/vundle'
 NeoBundle 'vim-perl/vim-perl'
+NeoBundle 'vim-ruby/vim-ruby'
 NeoBundle 'altercation/vim-colors-solarized'
 NeoBundle 'molokai'
 NeoBundle 'JavaScript-syntax'
@@ -31,6 +32,13 @@ call neobundle#end()
 
 filetype plugin indent on
 NeoBundleCheck
+
+" Basic ----------------------------------------
+set nobackup                     " バックアップ取らない
+set autoread                     " 他で書き換えられたら自動で読み直す
+set scrolloff=5                  " スクロール時の余白確保
+set ic                           " 検索で大文字小文字を区別しない
+set incsearch                    " インクリメンタルサーチ
 
 " Color ----------------------------------------
 set t_Co=256
@@ -47,6 +55,8 @@ highlight StatusLine term=bold cterm=bold ctermfg=black ctermbg=darkmagenta
 autocmd InsertEnter * highlight StatusLine ctermbg=red guibg=red
 autocmd InsertLeave * highlight StatusLine ctermbg=darkmagenta guibg=darkmagenta
 
+set hlsearch                     " 検索結果をハイライト
+
 " Indent ---------------------------------------
 set expandtab                 " タブをスペースに展開する
 set tabstop=2                 " <TAB>を含むファイルを開いた際、<TAB>を何文字の空白に変換するか
@@ -57,6 +67,10 @@ set smartindent               " 改行時に入力された行の末尾に合わ
 
 " Display --------------------------------------
 set number
+
+" Appearance -----------------------------------
+set showmatch         " 括弧の対応をハイライト
+set cursorline        " カーソル行をハイライト
 
 " Buffer ---------------------------------------
 noremap <Space> :bn<CR>
