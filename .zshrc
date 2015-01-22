@@ -33,7 +33,7 @@ setopt prompt_subst         # PROMPT内で変数展開・コマンド置換・�
 # setopt prompt_percent     # PROMPT内で「%」文字から始まる置換機能を有効にする
 setopt transient_rprompt    # 常に最後の行のみ右プロンプトを表示する
 
-# PROMPT="%% "
+PROMPT="%% "
 RPROMPT="[%/]"              # 右側のプロンプト
 # PROMPT2="%_%%"
 # SPROMPT="%r is corrent? [n,y,a,e]: "
