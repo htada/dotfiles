@@ -28,6 +28,7 @@ NeoBundle 'molokai'
 NeoBundle 'JavaScript-syntax'
 NeoBundle 'vim-scripts/surround.vim'
 NeoBundle 'slim-template/vim-slim'
+NeoBundle 'vim-scripts/buftabs'
 
 call neobundle#end()
 
@@ -37,9 +38,8 @@ NeoBundleCheck
 " Basic ----------------------------------------
 set nobackup                     " バックアップ取らない
 set autoread                     " 他で書き換えられたら自動で読み直す
+set hidden                       " 編集中でもほかのファイルを開けるようにする
 set scrolloff=5                  " スクロール時の余白確保
-set ic                           " 検索で大文字小文字を区別しない
-set incsearch                    " インクリメンタルサーチ
 
 " Color ----------------------------------------
 set t_Co=256
@@ -56,7 +56,11 @@ highlight StatusLine term=bold cterm=bold ctermfg=black ctermbg=darkmagenta
 autocmd InsertEnter * highlight StatusLine ctermbg=red guibg=red
 autocmd InsertLeave * highlight StatusLine ctermbg=darkmagenta guibg=darkmagenta
 
-set hlsearch                     " 検索結果をハイライト
+" Search ---------------------------------------
+set ic                        " 検索で大文字小文字を区別しない
+set incsearch                 " インクリメンタルサーチ
+
+set hlsearch                  " 検索結果をハイライト
 
 " Indent ---------------------------------------
 set expandtab                 " タブをスペースに展開する
@@ -65,13 +69,27 @@ set softtabstop=2             " キーボードで<TAB>を入力した際、<TAB
 set shiftwidth=2              " vimが自動でインデントを行った際、設定する空白数
 set autoindent                " 改行時に前の行のインデントを継続する
 set smartindent               " 改行時に入力された行の末尾に合わせて次の行のインデントを増減する 
+set smarttab                  " 行頭の余白でタブを押すとshiftwidthだけインデントする
 
 " Display --------------------------------------
 set number
+set showcmd                   " コマンドをステータス行に表示
+
+" encoding -------------------------------------
+set termencoding=utf-8        " ターミナルで使われるエンコーディング
+set encoding=utf-8            " デフォルトエンコーディング
+set fileencoding=utf-8        " デフォルトのファイルエンコーディング
+set fileencodings=utf-8,ucs-bom,iso-2022-jp-3,iso-2022-jp-2,euc-jisx0213,euc-jp,cp932 " vimが表示できるエンコードのリスト
+set fileformats=unix,mac,dos  " ファイルの改行タイプ指定
+
+set ambiwidth=double          " ASCIIと同じ文字幅 ◆や◯や●
 
 " Appearance -----------------------------------
-set showmatch         " 括弧の対応をハイライト
-set cursorline        " カーソル行をハイライト
+set showmatch                 " 括弧の対応をハイライト
+set cursorline                " カーソル行をハイライト
+set wildmenu                  " コマンド補完メニューを表示
+set wildmode=list,full        " <TAB>でリスト <TAB><TAB>で完全保管
+set history=1000              " コマンドの履歴数
 
 " Buffer ---------------------------------------
 noremap <Space> :bn<CR>
@@ -84,5 +102,4 @@ noremap <Down> :ls<CR>
 set laststatus=2
 set cmdheight=2               " コマンドラインで利用する行数
 set statusline=[%L]\ %t%r%m%=\ [%{&ff}]\ %{'['.(&fenc!=''?&fenc:&enc).']'}\ %c:%l
-
 
