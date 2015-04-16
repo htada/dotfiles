@@ -27,6 +27,7 @@ NeoBundle 'altercation/vim-colors-solarized'
 NeoBundle 'molokai'
 NeoBundle 'JavaScript-syntax'
 NeoBundle 'vim-scripts/surround.vim'
+NeoBundle 'slim-template/vim-slim'
 
 call neobundle#end()
 
