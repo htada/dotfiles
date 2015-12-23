@@ -32,8 +32,9 @@ unsetopt promptcr           # 改行コード(\n)で終わっていなくても�
 setopt prompt_subst         # PROMPT内で変数展開・コマンド置換・算術演算を実行する
 # setopt prompt_percent     # PROMPT内で「%」文字から始まる置換機能を有効にする
 setopt transient_rprompt    # 常に最後の行のみ右プロンプトを表示する
+setopt combining_chars      # Macの濁点・半濁点を <3099> <309a> のように表示させない
 
-PROMPT="%% "
+PROMPT="%% "                # 左側のプロンプト
 RPROMPT="[%/]"              # 右側のプロンプト
 # PROMPT2="%_%%"
 # SPROMPT="%r is corrent? [n,y,a,e]: "
