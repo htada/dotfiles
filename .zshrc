@@ -66,8 +66,8 @@ zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([%0-9]#)*=0=01;31
 zstyle ':completion:*' list-colors $LS_COLORS
 zstyle ':completion:*:(perldoc|perl):*' matcher 'r:|[:][:]=*'
 
-alias ll="ls -lhG"
-alias lla="ls -lhaG"
+alias ll="ls -lh"
+alias lla="ls -lha"
 alias g="git"
 alias gs="git status"
 alias gb="git branch"
