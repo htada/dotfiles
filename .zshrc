@@ -34,7 +34,7 @@ setopt prompt_subst         # PROMPT内で変数展開・コマンド置換・�
 setopt transient_rprompt    # 常に最後の行のみ右プロンプトを表示する
 setopt combining_chars      # Macの濁点・半濁点を <3099> <309a> のように表示させない
 
-PROMPT="%% "                # 左側のプロンプト
+PROMPT="%n@%m$ "                # 左側のプロンプト
 RPROMPT="[%/]"              # 右側のプロンプト
 # PROMPT2="%_%%"
 # SPROMPT="%r is corrent? [n,y,a,e]: "
@@ -82,6 +82,6 @@ if which plenv > /dev/null; then
 fi
 
 ## prioritize homebrew
-export PATH=~/bin:/usr/local/bin:$PATH
+export PATH=~/bin:~/local/bin:/usr/local/bin:$PATH
 
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
