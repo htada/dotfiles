@@ -68,6 +68,7 @@ zstyle ':completion:*:(perldoc|perl):*' matcher 'r:|[:][:]=*'
 
 alias ll="ls -lh"
 alias lla="ls -lha"
+alias llg="ls -lhG"
 
 ## git
 alias g="git"
@@ -111,4 +112,13 @@ function peco-path() {
 if which peco > /dev/null; then
   zle -N peco-path
   bindkey '^\' peco-path # Ctrl+\ で起動
+fi
+
+## completions
+if [ -e /usr/local/share/zsh-completions ]; then
+  # by homebrew
+  fpath=(/usr/local/share/zsh-completions $fpath)
+elif [ -e ~/.zsh/zsh-completions/src ]; then
+  # by manual
+  fpath=(~/.zsh/zsh-completions/src $fpath)
 fi
