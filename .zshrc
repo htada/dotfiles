@@ -68,11 +68,18 @@ zstyle ':completion:*:(perldoc|perl):*' matcher 'r:|[:][:]=*'
 
 alias ll="ls -lh"
 alias lla="ls -lha"
+
+## git
 alias g="git"
 alias gs="git status"
 alias gb="git branch"
 alias grep="grep --color"
 
+if which hub > /dev/null; then
+  eval "$(hub alias -s)"
+fi
+
+## xxenv
 if which rbenv > /dev/null; then
   eval "$(rbenv init - zsh)"
 fi
