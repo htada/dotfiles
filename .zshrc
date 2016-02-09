@@ -76,16 +76,16 @@ alias gs="git status"
 alias gb="git branch"
 alias grep="grep --color"
 
-if which hub > /dev/null; then
+if which hub > /dev/null 2>&1; then
   eval "$(hub alias -s)"
 fi
 
 ## xxenv
-if which rbenv > /dev/null; then
+if which rbenv > /dev/null 2>&1; then
   eval "$(rbenv init - zsh)"
 fi
 
-if which plenv > /dev/null; then
+if which plenv > /dev/null 2>&1; then
   eval "$(plenv init - zsh)"
 fi
 
@@ -109,7 +109,7 @@ function peco-path() {
   fi
   CURSOR=$#BUFFER
 }
-if which peco > /dev/null; then
+if which peco > /dev/null 2>&1; then
   zle -N peco-path
   bindkey '^\' peco-path # Ctrl+\ で起動
 fi
