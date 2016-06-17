@@ -40,6 +40,7 @@ set nobackup                     " バックアップ取らない
 set autoread                     " 他で書き換えられたら自動で読み直す
 set hidden                       " 編集中でもほかのファイルを開けるようにする
 set scrolloff=5                  " スクロール時の余白確保
+inoremap <silent> jj <ESC>
 
 " Color ----------------------------------------
 set t_Co=256
