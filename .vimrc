@@ -29,6 +29,7 @@ NeoBundle 'JavaScript-syntax'
 NeoBundle 'vim-scripts/surround.vim'
 NeoBundle 'slim-template/vim-slim'
 NeoBundle 'vim-scripts/buftabs'
+NeoBundle 'othree/html5.vim'
 
 call neobundle#end()
 
