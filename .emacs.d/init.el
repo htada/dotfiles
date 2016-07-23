@@ -39,6 +39,7 @@
 ;;; skk-server AquaSKK
 ;; (setq skk-server-portnum 1178)
 ;; (setq skk-server-host "localhost")
+(setq skk-large-jisyo "~/.emacs.d/etc/skk/SKK-JISYO.L")
 ;;; skk起動コマンド
 (global-set-key "\C-x\C-j" 'skk-mode)
 ;;; skk i-search
