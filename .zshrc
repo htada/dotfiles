@@ -114,6 +114,16 @@ if which peco > /dev/null 2>&1; then
   bindkey '^\' peco-path # Ctrl+\ で起動
 fi
 
+function peco-history-selection() {
+  BUFFER=`history -n 1 | tail -r  | awk '!a[$0]++' | peco`
+  CURSOR=$#BUFFER
+  zle reset-prompt
+}
+if which peco > /dev/null 2>&1; then
+  zle -N peco-history-selection
+  bindkey '^R' peco-history-selection
+fi
+
 ## completions
 if [ -e /usr/local/share/zsh-completions ]; then
   # by homebrew
