@@ -30,6 +30,8 @@ NeoBundle 'vim-scripts/surround.vim'
 NeoBundle 'slim-template/vim-slim'
 NeoBundle 'vim-scripts/buftabs'
 NeoBundle 'othree/html5.vim'
+NeoBundle "tyru/caw.vim"         " コメントアウトプラグイン
+NeoBundle "thinca/vim-quickrun"  " 実行
 
 call neobundle#end()
 
