@@ -114,14 +114,22 @@ if which peco > /dev/null 2>&1; then
   bindkey '^\' peco-path # Ctrl+\ で起動
 fi
 
-function peco-history-selection() {
-  BUFFER=`history -n 1 | tail -r  | awk '!a[$0]++' | peco`
-  CURSOR=$#BUFFER
-  zle reset-prompt
+function peco-select-history() {
+    local tac
+    if which tac > /dev/null; then
+        tac="tac"
+    else
+        tac="tail -r"
+    fi
+    BUFFER=$(\history -n 1 | \
+        eval $tac | \
+        peco --query "$LBUFFER")
+    CURSOR=$#BUFFER
+    zle reset-prompt
 }
 if which peco > /dev/null 2>&1; then
-  zle -N peco-history-selection
-  bindkey '^R' peco-history-selection
+  zle -N peco-select-history
+  bindkey '^r' peco-select-history
 fi
 
 ## completions
@@ -132,3 +140,5 @@ elif [ -e ~/.zsh/zsh-completions/src ]; then
   # by manual
   fpath=(~/.zsh/zsh-completions/src $fpath)
 fi
+
+test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
