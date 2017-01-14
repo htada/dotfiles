@@ -74,6 +74,7 @@ alias llg="ls -lhG"
 alias g="git"
 alias gs="git status"
 alias gb="git branch"
+
 alias grep="grep --color"
 
 if which hub > /dev/null 2>&1; then
@@ -91,8 +92,6 @@ fi
 
 ## prioritize homebrew
 export PATH=~/bin:~/local/bin:/usr/local/bin:$PATH
-
-[ -f ~/.zshrc.local ] && source ~/.zshrc.local
 
 export EDITOR=vim # 好きなエディタ
 function peco-path() {
@@ -142,3 +141,7 @@ elif [ -e ~/.zsh/zsh-completions/src ]; then
 fi
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+
+# 各環境カスタマイズ用
+[ -f ~/.zshrc.local ] && source ~/.zshrc.local
+
