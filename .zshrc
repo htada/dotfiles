@@ -77,6 +77,9 @@ alias gb="git branch"
 
 alias grep="grep --color"
 
+## prioritize homebrew
+export PATH=~/bin:~/local/bin:/usr/local/bin:$PATH
+
 if which hub > /dev/null 2>&1; then
   eval "$(hub alias -s)"
 fi
@@ -89,9 +92,6 @@ fi
 if which plenv > /dev/null 2>&1; then
   eval "$(plenv init - zsh)"
 fi
-
-## prioritize homebrew
-export PATH=~/bin:~/local/bin:/usr/local/bin:$PATH
 
 export EDITOR=vim # 好きなエディタ
 function peco-path() {
