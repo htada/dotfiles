@@ -44,6 +44,8 @@ set autoread                     " 他で書き換えられたら自動で読み
 set hidden                       " 編集中でもほかのファイルを開けるようにする
 set scrolloff=5                  " スクロール時の余白確保
 inoremap <silent> jj <ESC>
+set grepprg=git\ grep\ -n\ $*
+autocmd QuickfixCmdPost make,grep,grepadd,vimgrep,vimgrepadd cwin
 
 " Color ----------------------------------------
 set t_Co=256
