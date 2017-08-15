@@ -86,12 +86,21 @@ fi
 
 ## xxenv
 if which rbenv > /dev/null 2>&1; then
-  eval "$(rbenv init - zsh)"
+  eval "$(rbenv init -)"
 fi
 
 if which plenv > /dev/null 2>&1; then
   eval "$(plenv init - zsh)"
 fi
+
+if which goenv > /dev/null 2>&1; then
+  eval "$(goenv init -)"
+fi
+
+if which pyenv > /dev/null 2>&1; then
+  eval "$(pyenv init -)"
+fi
+
 
 export EDITOR=vim # 好きなエディタ
 function peco-path() {
