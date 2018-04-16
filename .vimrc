@@ -32,6 +32,8 @@ NeoBundle 'vim-scripts/buftabs'
 NeoBundle 'othree/html5.vim'
 NeoBundle "tyru/caw.vim"         " コメントアウトプラグイン
 NeoBundle "thinca/vim-quickrun"  " 実行
+NeoBundle 'junegunn/fzf', { 'dir': '~/.fzf', 'do': './install --all' }
+NeoBundle 'junegunn/fzf.vim'
 
 call neobundle#end()
 
