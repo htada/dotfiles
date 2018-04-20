@@ -152,6 +152,7 @@ fi
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+export FZF_DEFAULT_OPTS='--reverse --inline-info'
 
 # 各環境カスタマイズ用
 [ -f ~/.zshrc.local ] && source ~/.zshrc.local
